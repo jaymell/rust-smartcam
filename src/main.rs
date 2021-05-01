@@ -11,6 +11,14 @@ use std::thread;
 use std::time::{SystemTime};
 use chrono::{DateTime, Utc};
 
+struct Frame {
+	pub frame: Mat,
+	pub time: DateTime<Utc>,
+	pub height: i32,
+	pub width: i32
+}
+
+
 fn main() -> Result<()> {
 
 
@@ -28,11 +36,12 @@ fn main() -> Result<()> {
 
 
 
-  let (tx, rx) = mpsc::channel::<Mat>();
+  let (frame_tx, frame_rx) = mpsc::channel::<Frame>();
 
-  thread::spawn(move || -> Result<()> {
 
-		let fps = 1000 / 5;
+  let frame_viewer = thread::spawn(move || -> Result<()> {
+
+		let fps = 1000 / 50;
 
 		let window = "video capture";
 		highgui::named_window(window, highgui::WINDOW_AUTOSIZE)?;
@@ -40,20 +49,40 @@ fn main() -> Result<()> {
 	  let font = highgui::font_qt("", 12, Scalar_::new(40.0, 252.0, 3.0, 0.0),
 	  	highgui::QT_FONT_NORMAL, highgui::QT_STYLE_NORMAL, 0)?;
 
+  	loop {
+  		let frame = frame_rx.recv().unwrap();
+			highgui::add_text(&frame.frame, &frame.time.to_rfc3339(), Point_::new(frame.width/3,frame.height-(frame.height/6)), &font)?;
+	    highgui::imshow(window, &frame.frame)?;
+	    highgui::wait_key(1)?;
+  	}
+
+  	Ok(())
+
+  });
+
+
+  let frame_reader = thread::spawn(move || -> Result<()> {
+
     loop {
-	    println!("Getting frame");
-	    let frame = rx.recv().unwrap();
-	    println!("Got frame");
-			let now = SystemTime::now();
-			let now: DateTime<Utc> = now.into();
-	    let now = now.to_rfc3339();
 
-			let width = frame.size()?.width;
-			let height = frame.size()?.height;
+			let mut frame = Mat::default();
+			cam.read(&mut frame)?;
 
-			highgui::add_text(&frame, &now, Point_::new(width/3,height-(height/6)), &font)?;
-	    highgui::imshow(window, &frame)?;
-	    highgui::wait_key(fps)?;
+			let now: DateTime<Utc> = SystemTime::now().into();
+
+	    let frame = Frame {
+	    	time: now,
+	    	width: frame.size()?.width,
+	    	height: frame.size()?.height,
+	    	frame: frame
+	    };
+
+			if frame.width == 0 {
+				continue;
+			}
+
+			frame_tx.send(frame).unwrap();
+
     }
 
     Ok(())
@@ -62,23 +91,8 @@ fn main() -> Result<()> {
 
 
 
-
-	loop {
-
-		let mut frame = Mat::default();
-		println!("Reading frame. ");
-		cam.read(&mut frame)?;
-		println!("Read frame. ");
-		let width = frame.size()?.width;
-		let height = frame.size()?.height;
-		if width > 0 {
-			println!("Sending frame. ");
-			tx.send(frame.clone()).unwrap();
-			println!("Sent frame. ");
-		} else {
-			println!("Width is all wrong man")
-		}
-	}
+  frame_reader.join().unwrap();
+  frame_viewer.join().unwrap();
 
 	Ok(())
 }
