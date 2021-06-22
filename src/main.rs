@@ -5,12 +5,15 @@ use opencv::{
 	videoio,
 	core::Point,
 	core::Scalar_,
+  core::Size_,
   core::absdiff,
   core::BORDER_CONSTANT,
+  core::BORDER_DEFAULT,
   imgproc::threshold,
   imgproc::dilate,
   imgproc::morphology_default_border_value,
   imgproc::find_contours,
+  imgproc::gaussian_blur,
   imgproc::RETR_TREE,
   imgproc::CHAIN_APPROX_SIMPLE,
   imgproc::THRESH_BINARY,
@@ -25,29 +28,52 @@ use chrono::{DateTime, Utc};
 
 
 struct Frame {
-	pub frame: Mat,
+	img: Mat,
 	pub time: DateTime<Utc>,
 	pub height: i32,
 	pub width: i32
+
+}
+
+impl Frame {
+
+    fn get_img(&self) -> &Mat {
+      &self.img
+    }
+
+    fn blur(&self) -> Result<Frame> {
+      let mut blurred = Mat::default();
+      gaussian_blur(&self.img, &mut blurred, Size_::new(21, 21), 0.0, 0.0, BORDER_DEFAULT)?;
+      Ok(Frame { img: blurred, ..*self })
+    }
+
+    fn grayscale(&self) -> Result<Frame> {
+      let mut gray = Mat::default();
+      cvt_color(&self.img, &mut gray, COLOR_BGR2GRAY, 0)?;
+      Ok(Frame { img: gray, ..*self })
+    }
+
+    fn downsample(&self) -> Result<Frame> {
+      self
+        .grayscale()?
+        .blur()
+    }
+
 }
 
 impl Clone for Frame {
-    fn clone(&self) -> Self {
+
+    fn clone(&self) -> Frame {
       Frame {
-        frame: self.frame.clone(),
+        img: self.img.clone(),
         time: self.time,
         height: self.height,
         width: self.width
       }
     }
+
 }
 
-
-fn downsample(frame: Frame) -> Frame {
-    let mut gray = Mat::default();
-    cvt_color(&frame.frame, &mut gray, COLOR_BGR2GRAY, 0).unwrap();
-    Frame { frame: gray, .. frame }
-}
 
 fn main() -> Result<()> {
 
@@ -82,8 +108,8 @@ let frame_viewer = thread::spawn(move || -> Result<()> {
 
   	loop {
   		let frame = viewer_rx.recv().unwrap();
-			// highgui::add_text(&frame.frame, &frame.time.to_rfc3339(), Point::new(frame.width/3,frame.height-(frame.height/6)), &font)?;
-	  //   highgui::imshow(window, &frame.frame)?;
+			// highgui::add_text(&frame.get_img(), &frame.time.to_rfc3339(), Point::new(frame.width/3,frame.height-(frame.height/6)), &font)?;
+	  //   highgui::imshow(window, &frame.get_img())?;
 	  //   highgui::wait_key(1)?;
   	}
 
@@ -96,16 +122,16 @@ let frame_viewer = thread::spawn(move || -> Result<()> {
 
     loop {
 
-			let mut frame = Mat::default();
-			cam.read(&mut frame)?;
+			let mut img = Mat::default();
+			cam.read(&mut img)?;
 
 			let now: DateTime<Utc> = SystemTime::now().into();
 
 	    let frame = Frame {
 	    	time: now,
-	    	width: frame.size()?.width,
-	    	height: frame.size()?.height,
-	    	frame: frame
+	    	width: img.size()?.width,
+	    	height: img.size()?.height,
+	    	img: img
 	    };
 
 			if frame.width == 0 {
@@ -136,7 +162,7 @@ let frame_viewer = thread::spawn(move || -> Result<()> {
 
   let motion_detector = thread::spawn(move || -> Result<()> {
 
-    let mut previous = downsample(motion_rx.recv().unwrap());
+    let mut previous = motion_rx.recv().unwrap().downsample()?;
 
     let window = "motion detection";
     println!("opening motion detection window");
@@ -145,10 +171,10 @@ let frame_viewer = thread::spawn(move || -> Result<()> {
 
     loop {
 
-      let frame = downsample(motion_rx.recv().unwrap());
+      let frame = motion_rx.recv().unwrap().downsample()?;
 
       let mut delta = Mat::default();
-      absdiff(&previous.frame, &frame.frame, &mut delta);
+      absdiff(&previous.get_img(), &frame.get_img(), &mut delta);
 
       let mut thresh = Mat::default();
       threshold(&delta, &mut thresh, 25.0, 255.0, THRESH_BINARY);
@@ -158,16 +184,9 @@ let frame_viewer = thread::spawn(move || -> Result<()> {
 
       let mut contours = VectorOfMat::new();
 
-      match find_contours(&dilated, &mut contours, RETR_TREE, CHAIN_APPROX_SIMPLE, Point::new(0,0)) {
-              Ok(_ok) => {
-                  println!("[OK] find contours");
-              },
-              Err(error) => {
-                  println!("[KO] find contours: {}", error);
-              }
-          };
+      find_contours(&dilated, &mut contours, RETR_TREE, CHAIN_APPROX_SIMPLE, Point::new(0,0))?;
 
-      println!("Contours: {:?}", contours);
+      // println!("Contours: {:?}", contours);
 
       highgui::imshow(window, &dilated)?;
       highgui::wait_key(1)?;
