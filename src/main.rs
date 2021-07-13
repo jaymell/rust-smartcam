@@ -1,36 +1,30 @@
-use opencv::{
-  Result
-};
-
 use std::{
   sync::mpsc,
   thread
 };
-
 
 mod frame_viewer;
 mod frame_reader;
 mod frame_splitter;
 mod motion_detector;
 mod core;
-
+mod logger;
 
 use crate::core::Frame;
 
-fn main() -> Result<()> {
+fn main() -> () {
 
+  logger::init().unwrap();
 
   let (frame_tx, frame_rx) = mpsc::channel::<Frame>();
 
-  let frame_reader_thread = thread::spawn(move || -> Result<()> {
+  let frame_reader_thread = thread::spawn(move || -> () {
     frame_reader::start(frame_tx);
-    Ok(())
 
   });
 
-  let motion_detector_thread = thread::spawn(move || -> Result<()> {
+  let motion_detector_thread = thread::spawn(move || -> () {
     motion_detector::start(frame_rx);
-    Ok(())
 
   });
 
@@ -38,5 +32,4 @@ fn main() -> Result<()> {
   frame_reader_thread.join().unwrap();
   motion_detector_thread.join().unwrap();
 
-	Ok(())
 }

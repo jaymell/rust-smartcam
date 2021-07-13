@@ -13,18 +13,29 @@ use opencv::{
   imgproc::RETR_TREE,
   imgproc::CHAIN_APPROX_SIMPLE,
   imgproc::THRESH_BINARY,
+  imgproc::contour_area,
   types::VectorOfMat
 };
+use chrono::{DateTime, NaiveDateTime, Utc, Duration};
+use log::{debug, trace};
 
 use crate::core::Frame;
 
+const MIN_CONTOUR_AREA: i16 = 200;
+
+
 pub fn start(receiver: Receiver<Frame>) -> Result<()> {
+
   let mut previous = receiver.recv().unwrap().downsample()?;
 
   let window = "motion detection";
-  println!("opening motion detection window");
+  debug!("opening motion detection window");
   highgui::named_window(window, highgui::WINDOW_AUTOSIZE)?;
-  println!("opening motion detection window DONE");
+  debug!("opening motion detection window DONE");
+
+  let mut in_motion = false;
+  let mut in_motion_window = false;
+  let mut last_motion_time = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(61, 0), Utc);
 
   loop {
 
@@ -43,7 +54,22 @@ pub fn start(receiver: Receiver<Frame>) -> Result<()> {
 
     find_contours(&dilated, &mut contours, RETR_TREE, CHAIN_APPROX_SIMPLE, Point::new(0,0))?;
 
-    // println!("Contours: {:?}", contours);
+    for c in contours.iter() {
+      trace!("Contours: {:?}", c);
+      let area = contour_area(&c, false).unwrap();
+      if area as i16 >= MIN_CONTOUR_AREA {
+        in_motion = true;
+        in_motion_window = true;
+        last_motion_time = frame.time;
+        debug!("Motion detected at {:?}", last_motion_time);
+        break;
+      }
+    }
+
+    if in_motion_window && !check_in_motion(frame.time, last_motion_time) {
+      debug!("Motion window closing.");
+      in_motion_window = false;
+    }
 
     highgui::imshow(window, &dilated)?;
     highgui::wait_key(1)?;
@@ -55,3 +81,11 @@ pub fn start(receiver: Receiver<Frame>) -> Result<()> {
 }
 
 
+fn check_in_motion(current_time: DateTime<Utc>, last_motion_time: DateTime<Utc>) -> bool {
+  let min_motion_capture_time: Duration = Duration::seconds(20);
+  if ( current_time - min_motion_capture_time) >= last_motion_time {
+    false
+  } else {
+    true
+  }
+}
