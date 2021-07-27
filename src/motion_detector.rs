@@ -17,11 +17,11 @@ use opencv::{
   types::VectorOfMat
 };
 use chrono::{DateTime, NaiveDateTime, Utc, Duration};
-use log::{debug, trace};
+use log::{debug, trace, error};
 
 use crate::core::Frame;
 
-const MIN_CONTOUR_AREA: i16 = 200;
+const MIN_CONTOUR_AREA: u16 = 200;
 
 
 pub fn start(receiver: Receiver<Frame>) -> Result<()> {
@@ -39,7 +39,19 @@ pub fn start(receiver: Receiver<Frame>) -> Result<()> {
 
   loop {
 
-    let frame = receiver.recv().unwrap().downsample()?;
+    let frame = match receiver.recv() {
+      Ok(frame) => match frame.downsample() {
+        Ok(downsampled) => downsampled,
+        Err(error) => {
+          error!("Failed to downsample frame: {:?}", error);
+          continue;
+        }
+      },
+      Err(error) => {
+        error!("Failed to receieve frame: {:?}", error);
+        continue;
+      }
+    };
 
     let mut delta = Mat::default();
     absdiff(&previous.get_img(), &frame.get_img(), &mut delta);
@@ -48,16 +60,34 @@ pub fn start(receiver: Receiver<Frame>) -> Result<()> {
     threshold(&delta, &mut thresh, 25.0, 255.0, THRESH_BINARY);
 
     let mut dilated = Mat::default();
-    dilate(&thresh, &mut dilated, &Mat::default(), Point::new(1,1), 1, BORDER_CONSTANT, morphology_default_border_value().unwrap());
+
+    // TODO: No idea if this needs to be called every time or can just be called once:
+    let bv = match morphology_default_border_value() {
+      Ok(v) => v,
+      Err(error) => {
+        error!("morphology_default_border_value failed: {:?}", error);
+        continue;
+      }
+    };
+    dilate(&thresh, &mut dilated, &Mat::default(), Point::new(1,1), 1, BORDER_CONSTANT, bv);
 
     let mut contours = VectorOfMat::new();
 
-    find_contours(&dilated, &mut contours, RETR_TREE, CHAIN_APPROX_SIMPLE, Point::new(0,0))?;
+    if let Err(error) = find_contours(&dilated, &mut contours, RETR_TREE, CHAIN_APPROX_SIMPLE, Point::new(0,0)) {
+      error!("Failed to find contours: {:?}", error);
+      continue;
+    }
 
     for c in contours.iter() {
       trace!("Contours: {:?}", c);
-      let area = contour_area(&c, false).unwrap();
-      if area as i16 >= MIN_CONTOUR_AREA {
+      let area = match contour_area(&c, false) {
+        Ok(a) => a,
+        Err(error) => {
+          error!("Failed to get contour area: {:?}", error);
+          continue;
+        }
+      };
+      if area as u16 >= MIN_CONTOUR_AREA {
         in_motion = true;
         in_motion_window = true;
         last_motion_time = frame.time;
@@ -71,8 +101,15 @@ pub fn start(receiver: Receiver<Frame>) -> Result<()> {
       in_motion_window = false;
     }
 
-    highgui::imshow(window, &dilated)?;
-    highgui::wait_key(1)?;
+    if let Err(error) = highgui::imshow(window, &dilated) {
+      error!("highgui::imshow failed: {:?}", error);
+      continue;
+    }
+
+    if let Err(error) = highgui::wait_key(1) {
+      error!("highgui::wait_key failed: {:?}", error);
+      continue;
+    }
 
     previous = frame;
   }
@@ -83,7 +120,7 @@ pub fn start(receiver: Receiver<Frame>) -> Result<()> {
 
 fn check_in_motion(current_time: DateTime<Utc>, last_motion_time: DateTime<Utc>) -> bool {
   let min_motion_capture_time: Duration = Duration::seconds(20);
-  if ( current_time - min_motion_capture_time) >= last_motion_time {
+  if ( current_time - min_motion_capture_time ) >= last_motion_time {
     false
   } else {
     true

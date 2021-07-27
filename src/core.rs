@@ -7,11 +7,11 @@ use opencv::{
   imgproc::COLOR_BGR2GRAY,
   imgproc::cvt_color,
 };
-
 use std::sync::mpsc;
 use std::thread;
 use std::time::{SystemTime};
 use chrono::{DateTime, Utc};
+
 
 pub struct Frame {
   pub img: Mat,
@@ -61,3 +61,5 @@ impl Clone for Frame {
     }
 
 }
+
+
