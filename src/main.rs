@@ -1,35 +1,30 @@
-use std::{
-  sync::mpsc,
-  thread
-};
+use std::{sync::mpsc, thread};
 
-mod frame_viewer;
+mod frame;
 mod frame_reader;
 mod frame_splitter;
-mod motion_detector;
-mod core;
+mod frame_viewer;
 mod logger;
+mod motion_detector;
+use self::motion_detector::MotionDetector;
+mod video_writer;
 
-use crate::core::Frame;
+use crate::frame::Frame;
 
 fn main() -> () {
+    logger::init().unwrap();
 
-  logger::init().unwrap();
+    let (frame_tx, frame_rx) = mpsc::channel::<Frame>();
 
-  let (frame_tx, frame_rx) = mpsc::channel::<Frame>();
+    let frame_reader_thread = thread::spawn(move || -> () {
+        frame_reader::start(frame_tx);
+    });
 
-  let frame_reader_thread = thread::spawn(move || -> () {
-    frame_reader::start(frame_tx);
+    let motion_detector_thread = thread::spawn(move || -> () {
+        let md = MotionDetector::new(frame_rx);
+        md.start();
+    });
 
-  });
-
-  let motion_detector_thread = thread::spawn(move || -> () {
-    motion_detector::start(frame_rx);
-
-  });
-
-
-  frame_reader_thread.join().unwrap();
-  motion_detector_thread.join().unwrap();
-
+    frame_reader_thread.join().unwrap();
+    motion_detector_thread.join().unwrap();
 }

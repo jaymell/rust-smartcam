@@ -3,7 +3,6 @@
 
 // let frame_viewer = thread::spawn(move || -> Result<()> {
 
-
 //     // let window = "video capture";
 //   //   println!("opening video capture window");
 //     // highgui::named_window(window, highgui::WINDOW_AUTOSIZE)?;

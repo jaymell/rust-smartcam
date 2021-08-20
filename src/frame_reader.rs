@@ -1,54 +1,43 @@
 use std::sync::mpsc::Sender;
 
-use opencv::{
-  prelude::*,
-  Result,
-  videoio,
-};
+use opencv::{prelude::*, videoio, Result};
 
-use std::time::{SystemTime};
 use chrono::{DateTime, Utc};
+use std::time::SystemTime;
 
-use crate::core::Frame;
-
+use crate::frame::Frame;
 
 pub fn start(sender: Sender<Frame>) -> Result<()> {
+    #[cfg(ocvrs_opencv_branch_32)]
+    let mut cam = videoio::VideoCapture::new_default(0)?; // 0 is the default camera
 
-  #[cfg(ocvrs_opencv_branch_32)]
-  let mut cam = videoio::VideoCapture::new_default(0)?; // 0 is the default camera
+    #[cfg(not(ocvrs_opencv_branch_32))]
+    let mut cam = videoio::VideoCapture::new(0, videoio::CAP_ANY)?; // 0 is the default camera
 
-  #[cfg(not(ocvrs_opencv_branch_32))]
-  let mut cam = videoio::VideoCapture::new(0, videoio::CAP_ANY)?; // 0 is the default camera
-
-  let opened = videoio::VideoCapture::is_opened(&cam)?;
-  if !opened {
-    panic!("Unable to open default camera!");
-  }
-
-  loop {
-
-    let mut img = Mat::default();
-    cam.read(&mut img)?;
-
-    let now: DateTime<Utc> = SystemTime::now().into();
-
-    let frame = Frame {
-      time: now,
-      width: img.size()?.width,
-      height: img.size()?.height,
-      img: img
-    };
-
-    if frame.width == 0 {
-      continue;
+    let opened = videoio::VideoCapture::is_opened(&cam)?;
+    if !opened {
+        panic!("Unable to open default camera!");
     }
 
-    sender.send(frame).unwrap();
+    loop {
+        let mut img = Mat::default();
+        cam.read(&mut img)?;
 
-  }
+        let now: DateTime<Utc> = SystemTime::now().into();
 
- Ok(())
+        let frame = Frame {
+            time: now,
+            width: img.size()?.width as u32,
+            height: img.size()?.height as u32,
+            img: img,
+        };
 
+        if frame.width == 0 {
+            continue;
+        }
 
+        sender.send(frame).unwrap();
+    }
+
+    Ok(())
 }
-
