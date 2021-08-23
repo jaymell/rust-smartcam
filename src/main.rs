@@ -21,7 +21,7 @@ fn main() -> () {
     });
 
     let motion_detector_thread = thread::spawn(move || -> () {
-        let md = MotionDetector::new(frame_rx);
+        let mut md = MotionDetector::new(frame_rx);
         md.start();
     });
 

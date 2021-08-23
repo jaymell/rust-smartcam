@@ -156,7 +156,7 @@ impl MotionDetector {
     }
 
     fn send_frame(&mut self, frame: VideoFrame) -> () {
-        match self.video_writer {
+        match &self.video_writer {
             Some(v) => {
                 v.send_frame(frame);
             }
