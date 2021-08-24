@@ -23,16 +23,8 @@ pub fn start(sender: Sender<Frame>) -> Result<()> {
         let mut img = Mat::default();
         cam.read(&mut img)?;
 
-        let now: DateTime<Utc> = SystemTime::now().into();
-
-        let frame = Frame {
-            time: now,
-            width: img.size()?.width as u32,
-            height: img.size()?.height as u32,
-            img: img,
-        };
-
-        if frame.width == 0 {
+        let frame = Frame::new(img, None);
+        if frame.width() == 0 {
             continue;
         }
 

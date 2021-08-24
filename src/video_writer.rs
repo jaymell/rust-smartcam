@@ -1,19 +1,24 @@
+use crate::frame::{Frame, VideoFrame};
 use ffmpeg_next::{
     codec, codec::encoder::video::Video, codec::id::Id, format, format::context::output::Output,
-    format::stream::StreamMut, format::Pixel, frame, util::rational::Rational, Dictionary, Picture,
+    format::stream::StreamMut, format::Pixel, frame, util::rational::Rational, Dictionary, Packet,
+    Picture,
 };
 use ffmpeg_sys_next as ffs;
-use ffs::{avpicture_fill, AVCodecID::AV_CODEC_ID_RAWVIDEO, AVFrame, AVPixelFormat};
+use ffs::{
+    av_frame_alloc, av_frame_get_buffer, avpicture_fill, AVCodecID::AV_CODEC_ID_RAWVIDEO, AVFrame,
+    AVPicture, AVPixelFormat, AVPixelFormat::AV_PIX_FMT_BGR24, AVPixelFormat::AV_PIX_FMT_YUYV422,
+};
 use libc::c_int;
 use log::{debug, error, trace};
 use opencv::core::prelude::MatTrait;
 use std::convert::TryFrom;
+use std::convert::TryInto;
+use std::mem;
 use std::path::Path;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
-
-use crate::frame::{Frame, VideoFrame};
 
 pub struct VideoWriter {
     sender: Sender<VideoFrame>,
@@ -45,6 +50,11 @@ impl VideoFrameProcessor {
         Self { receiver: receiver }
     }
 
+    fn format() -> Pixel {
+        // Pixel::BGR24
+        Pixel::YUYV422
+    }
+
     pub fn receive(&mut self) -> () {
         let p = Path::new("/tmp/out.mp4");
         let mut octx = format::output(&p).unwrap();
@@ -55,11 +65,11 @@ impl VideoFrameProcessor {
 
         // Get first frame:
         let video_frame = self.receiver.recv().unwrap();
-        let frame = video_frame.frame;
+        let mut frame = video_frame.frame;
 
-        encoder.set_width(frame.width);
-        encoder.set_height(frame.height);
-        encoder.set_format(Pixel::YUYV422);
+        encoder.set_width(frame.width());
+        encoder.set_height(frame.height());
+        encoder.set_format(VideoFrameProcessor::format());
         // FIXME
         encoder.set_time_base(Rational::new(1, 20));
         let mut x264opts = Dictionary::new();
@@ -68,11 +78,13 @@ impl VideoFrameProcessor {
         encoder = ost.codec().encoder().video().unwrap();
 
         self.process_frame(frame, &mut encoder);
+        self.receive_and_process_encoded_packets(&mut octx, &mut encoder);
 
         loop {
             let video_frame = self.receiver.recv().unwrap();
-            let frame = video_frame.frame;
-            self.process_frame(frame, &mut encoder);
+            let mut frame = video_frame.frame;
+            let av_frame = self.process_frame(frame, &mut encoder);
+            self.receive_and_process_encoded_packets(&mut octx, &mut encoder);
             if video_frame.is_end {
                 encoder.send_eof().unwrap();
                 break;
@@ -80,30 +92,49 @@ impl VideoFrameProcessor {
         }
     }
 
-    fn process_frame(&mut self, frame: Frame, encoder: &mut Video) -> () {
-        // Picture to AvFrame to ffmpeg_next::Frame to ffmpeg_next::frame::Video ... WTF
-        let mut dst = Picture::new(Pixel::YUYV422, frame.width, frame.height).unwrap();
-        debug!("width height {:?} {:?}", frame.width as c_int, frame.height as c_int);
+    fn process_frame(&mut self, mut frame: Frame, encoder: &mut Video) -> () {
         unsafe {
+            let mut dst = av_frame_alloc();
+            (*dst).width = frame.width() as c_int;
+            (*dst).height = frame.height() as c_int;
+            (*dst).format = mem::transmute::<AVPixelFormat, c_int>(AV_PIX_FMT_YUYV422.into());
+            // (*dst).format = mem::transmute::<AVPixelFormat, c_int>(AV_PIX_FMT_BGR24.into());
+            av_frame_get_buffer(dst, 32);
             avpicture_fill(
-                dst.as_mut_ptr(),
-                frame.img.datastart(),
-                AVPixelFormat::from(Pixel::YUYV422),
-                frame.width as c_int,
-                frame.height as c_int,
+                dst as *mut AVPicture,
+                frame.img_mut().data_mut(),
+                AVPixelFormat::from(VideoFrameProcessor::format()),
+                encoder.width() as i32,
+                encoder.height() as i32,
             );
+            debug!("pre buf");
+            let buf = (*dst).buf;
+            debug!("post buf");
+            debug!("buf size {:?}", (*buf[0]).size);
+            debug!("post buf size log");
+            let mut video_frame = frame::Video::wrap(dst);
+            video_frame.set_width(frame.width());
+            video_frame.set_height(frame.height());
+            video_frame.set_format(VideoFrameProcessor::format());
+            encoder.send_frame(&video_frame).unwrap();
         }
+    }
 
-        // let avframe = AVFrame::try_from(dst).unwrap();
-        let mut ff_frame: frame::Frame;
-        unsafe {
-            ff_frame = frame::Frame::wrap(dst.as_mut_ptr() as *mut AVFrame);
+    fn receive_and_process_encoded_packets(
+        &mut self,
+        octx: &mut format::context::Output,
+        // ost_time_base: Rational,
+        encoder: &mut Video,
+    ) {
+        let ost_index = 0;
+        let mut encoded = Packet::empty();
+        while encoder.receive_packet(&mut encoded).is_ok() {
+            debug!("Setting stream...");
+            encoded.set_stream(ost_index);
+            // encoded.rescale_ts(self.decoder.time_base(), ost_time_base);
+            debug!("Writing packets...");
+            encoded.write_interleaved(octx).unwrap();
         }
-
-        let mut video_frame = frame::Video::from(ff_frame);
-        video_frame.set_width(frame.width);
-        video_frame.set_height(frame.height);
-        video_frame.set_format(Pixel::YUYV422);
-        encoder.send_frame(&video_frame).unwrap();
+        debug!("Finished writing packets...");
     }
 }

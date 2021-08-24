@@ -9,10 +9,10 @@ use opencv::{
 };
 
 pub struct Frame {
-    pub img: Mat,
-    pub time: DateTime<Utc>,
-    pub height: u32,
-    pub width: u32,
+    img: Mat,
+    time: DateTime<Utc>,
+    height: u32,
+    width: u32,
 }
 
 pub struct VideoFrame {
@@ -22,8 +22,40 @@ pub struct VideoFrame {
 }
 
 impl Frame {
-    pub fn get_img(&self) -> &Mat {
+    pub fn new(img: Mat, time: Option<DateTime<Utc>>) -> Self {
+        let _time = if let Some(t) = time {
+            t
+        } else {
+            let now: DateTime<Utc> = SystemTime::now().into();
+            now
+        };
+
+        Self {
+            time: _time,
+            width: img.size().unwrap().width as u32,
+            height: img.size().unwrap().height as u32,
+            img: img,
+        }
+    }
+
+    pub fn img(&self) -> &Mat {
         &self.img
+    }
+
+    pub fn img_mut(&mut self) -> &mut Mat {
+        &mut self.img
+    }
+
+    pub fn time(&self) -> DateTime<Utc> {
+        self.time
+    }
+
+    pub fn height(&self) -> u32 {
+        self.height
+    }
+
+    pub fn width(&self) -> u32 {
+        self.width
     }
 
     pub fn blur(&self) -> Result<Frame> {

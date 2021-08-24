@@ -56,7 +56,7 @@ impl MotionDetector {
             };
 
             let mut delta = Mat::default();
-            absdiff(&previous.get_img(), &frame.get_img(), &mut delta);
+            absdiff(&previous.img(), &frame.img(), &mut delta);
 
             let mut thresh = Mat::default();
             threshold(&delta, &mut thresh, 25.0, 255.0, THRESH_BINARY);
@@ -115,14 +115,14 @@ impl MotionDetector {
                     }
                     self.in_motion = true;
                     self.in_motion_window = true;
-                    self.last_motion_time = frame.time;
+                    self.last_motion_time = frame.time();
                     debug!("Motion detected at {:?}", self.last_motion_time);
                     break;
                 }
             }
 
-            if !self.in_motion && self.in_motion_window {
-                if !check_in_motion_window(frame.time, self.last_motion_time) {
+            if self.in_motion_window {
+                if !check_in_motion_window(frame.time(), self.last_motion_time) {
                     debug!("Motion window closing.");
                     self.in_motion_window = false;
                     self.send_frame(VideoFrame {

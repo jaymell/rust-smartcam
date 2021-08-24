@@ -13,8 +13,8 @@
 
 //     loop {
 //       let frame = viewer_rx.recv().unwrap();
-//       // highgui::add_text(&frame.get_img(), &frame.time.to_rfc3339(), Point::new(frame.width/3,frame.height-(frame.height/6)), &font)?;
-//     //   highgui::imshow(window, &frame.get_img())?;
+//       // highgui::add_text(&frame.img(), &frame.time.to_rfc3339(), Point::new(frame.width/3,frame.height-(frame.height/6)), &font)?;
+//     //   highgui::imshow(window, &frame.img())?;
 //     //   highgui::wait_key(1)?;
 //     }
 
