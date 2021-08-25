@@ -41,16 +41,18 @@ impl MotionDetector {
         debug!("opening motion detection window DONE");
 
         loop {
-            let frame = match self.receiver.recv() {
-                Ok(frame) => match frame.downsample() {
-                    Ok(downsampled) => downsampled,
-                    Err(error) => {
-                        error!("Failed to downsample frame: {:?}", error);
-                        continue;
-                    }
-                },
+            let org_frame = match self.receiver.recv() {
+                Ok(frame) => frame,
                 Err(error) => {
                     error!("Failed to receieve frame: {:?}", error);
+                    continue;
+                }
+            };
+            let mut frame = org_frame.clone();
+            frame = match frame.downsample() {
+                Ok(downsampled) => downsampled,
+                Err(error) => {
+                    error!("Failed to downsample frame: {:?}", error);
                     continue;
                 }
             };
@@ -108,7 +110,7 @@ impl MotionDetector {
                     // Motion detected:
                     if !self.in_motion {
                         self.send_frame(VideoFrame {
-                            frame: frame.clone(),
+                            frame: org_frame.clone(),
                             is_start: true,
                             is_end: false,
                         });
@@ -126,13 +128,14 @@ impl MotionDetector {
                     debug!("Motion window closing.");
                     self.in_motion_window = false;
                     self.send_frame(VideoFrame {
-                        frame: frame.clone(),
+                        frame: org_frame.clone(),
                         is_start: false,
                         is_end: true,
                     });
+                    self.video_writer = None;
                 } else {
                     self.send_frame(VideoFrame {
-                        frame: frame.clone(),
+                        frame: org_frame.clone(),
                         is_start: false,
                         is_end: false,
                     });
@@ -170,7 +173,7 @@ impl MotionDetector {
 }
 
 fn check_in_motion_window(current_time: DateTime<Utc>, last_motion_time: DateTime<Utc>) -> bool {
-    let min_motion_capture_time: Duration = Duration::seconds(20);
+    let min_motion_capture_time: Duration = Duration::seconds(10);
     if (current_time - min_motion_capture_time) >= last_motion_time {
         false
     } else {
