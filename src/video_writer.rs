@@ -1,4 +1,5 @@
 use crate::frame::{Frame, VideoFrame};
+use chrono;
 use chrono::{DateTime, Utc};
 use ffmpeg::{
     codec, codec::encoder::video::Video, codec::id::Id, format, format::context::output::Output,
@@ -97,8 +98,13 @@ impl VideoFrameProcessor {
     }
 
     pub fn receive(&mut self) -> () {
-        let f = "/tmp/out.mkv";
-        let p = Path::new(f);
+        // Get first frame:
+        let video_frame = self.receiver.recv().unwrap();
+        let frame = video_frame.frame;
+        self.start_time = Some(frame.time());
+
+        let f = format!("/tmp/{}.mkv", frame.time().format("%+"));
+        let p = Path::new(&f);
 
         ffmpeg::util::log::set_level(Level::Trace);
         ffmpeg::init().unwrap();
@@ -114,10 +120,6 @@ impl VideoFrameProcessor {
             .unwrap();
         let mut encoder = ost.codec().encoder().video().unwrap();
 
-        // Get first frame:
-        let video_frame = self.receiver.recv().unwrap();
-        let mut frame = video_frame.frame;
-        self.start_time = Some(frame.time());
         encoder.set_width(frame.width());
         encoder.set_height(frame.height());
         encoder.set_format(VideoFrameProcessor::video_format());
@@ -131,7 +133,7 @@ impl VideoFrameProcessor {
         // Not sure why encoder is reassigned here:
         encoder = ost.codec().encoder().video().unwrap();
         // Not sure what this is doing
-        format::context::output::dump(&octx, 0, Some(f));
+        format::context::output::dump(&octx, 0, Some(&f));
         octx.write_header().unwrap();
 
         self.process_frame(frame, &mut encoder);

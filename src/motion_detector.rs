@@ -48,8 +48,7 @@ impl MotionDetector {
                     continue;
                 }
             };
-            let mut frame = org_frame.clone();
-            frame = match frame.downsample() {
+            let mut frame = match org_frame.downsample() {
                 Ok(downsampled) => downsampled,
                 Err(error) => {
                     error!("Failed to downsample frame: {:?}", error);
