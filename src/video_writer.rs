@@ -12,7 +12,7 @@ use ffs::{
     AVPicture, AVPixelFormat,
 };
 use libc::c_int;
-use log::{debug, error, trace};
+use log::{debug, error, trace, warn};
 use opencv::core::prelude::MatTrait;
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -31,7 +31,7 @@ impl VideoWriter {
         let (video_tx, video_rx) = mpsc::channel::<VideoFrame>();
 
         let thread = thread::spawn(|| -> () {
-            let mut video_frame_proc = VideoFrameProcessor::new(video_rx, 30);
+            let mut video_frame_proc = VideoFrameProcessor::new(video_rx, 1000);
             video_frame_proc.receive();
         });
 
@@ -59,6 +59,8 @@ struct VideoFrameProcessor {
     receiver: Receiver<VideoFrame>,
     fps: i16,
     start_time: Option<DateTime<Utc>>,
+    previous_frame_time: Option<DateTime<Utc>>,
+    previous_pts: Option<i64>,
     frame_count: i64,
 }
 
@@ -68,6 +70,8 @@ impl VideoFrameProcessor {
             receiver: receiver,
             fps: fps,
             start_time: None,
+            previous_frame_time: None,
+            previous_pts: None,
             frame_count: 0,
         }
     }
@@ -179,7 +183,15 @@ impl VideoFrameProcessor {
                 .unwrap()
                 .run(&video_frame, &mut converted)
                 .unwrap();
+            let pts = Some(self.calc_pts(frame.time()).unwrap_or(0));
+            // let pts = Some(self.frame_count);
+            converted.set_pts(pts);
+
             encoder.send_frame(&converted).unwrap();
+
+            self.previous_frame_time = Some(frame.time());
+            self.previous_pts = pts;
+            self.frame_count = self.frame_count + 1;
         }
     }
 
@@ -193,17 +205,32 @@ impl VideoFrameProcessor {
         while encoder.receive_packet(&mut encoded).is_ok() {
             debug!("Writing packets...");
             encoded.set_stream(ost_index);
-            self.frame_count = self.frame_count + 1;
-            encoded.set_pts(Some(self.calc_pts()));
-
             encoded.write_interleaved(octx).unwrap();
         }
         debug!("Finished writing packets...");
     }
 
-    fn calc_pts(&mut self) -> i64 {
-        let result = (90000f64 * self.frame_count as f64 / self.fps as f64).round() as i64;
-        debug!("PTS {:?}", result);
-        result
+    fn calc_pts(&mut self, ts: DateTime<Utc>) -> Option<i64> {
+        match (self.previous_frame_time) {
+            Some(t) => {
+                match (self.previous_pts) {
+                    Some(p) => {
+                        let delta = (ts - t).num_milliseconds();
+                        // let result = ((delta as f64) / self.fps as f64).round() as i64 + p;
+                        // let result = (self.frame_count as f64 / self.fps as f64).round() as i64;
+                        // let result = p + 300;
+                        let result =
+                            ((delta as f64 / 1000.0) * self.fps as f64 + p as f64).round() as i64;
+                        debug!("PTS {:?}", result);
+                        Some(result)
+                    }
+                    None => {
+                        warn!("Last PTS not found.");
+                        None
+                    }
+                }
+            }
+            None => None,
+        }
     }
 }
