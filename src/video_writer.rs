@@ -1,27 +1,24 @@
 use crate::frame::{Frame, VideoFrame};
+use crate::uploader;
 use chrono;
 use chrono::{DateTime, Utc};
 use ffmpeg::{
-    codec, codec::encoder::video::Video, codec::id::Id, format, format::context::output::Output,
-    format::stream::StreamMut, format::Pixel, frame, util, util::log::level::Level,
-    util::rational::Rational, Dictionary, Packet, Picture,
+    codec, codec::encoder::video::Video, format, format::Pixel, frame, util::log::level::Level,
+    util::rational::Rational, Dictionary, Packet,
 };
 use ffmpeg_next as ffmpeg;
 use ffmpeg_sys_next as ffs;
-use ffs::{
-    av_frame_alloc, av_frame_get_buffer, avpicture_fill, AVCodecID::AV_CODEC_ID_RAWVIDEO, AVFrame,
-    AVPicture, AVPixelFormat,
-};
+use ffs::{av_frame_alloc, av_frame_get_buffer, avpicture_fill, AVPicture, AVPixelFormat};
 use libc::c_int;
-use log::{debug, error, trace, warn};
+use log::{debug, warn};
 use opencv::core::prelude::MatTrait;
-use std::convert::TryFrom;
-use std::convert::TryInto;
+use std::fs;
 use std::mem;
 use std::path::Path;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
+use tokio::runtime::Runtime;
 
 pub struct VideoWriter {
     sender: Sender<VideoFrame>,
@@ -115,7 +112,7 @@ impl VideoFrameProcessor {
 
         let global_header = octx.format().flags().contains(format::Flags::GLOBAL_HEADER);
 
-        let mut ost = octx
+        let ost = octx
             .add_stream(codec::encoder::find(codec::Id::H264))
             .unwrap();
         let mut encoder = ost.codec().encoder().video().unwrap();
@@ -140,7 +137,7 @@ impl VideoFrameProcessor {
 
         loop {
             let video_frame = self.receiver.recv().unwrap();
-            let mut frame = video_frame.frame;
+            let frame = video_frame.frame;
             let av_frame = self.process_frame(frame, &mut encoder);
             self.receive_and_process_encoded_packets(&mut octx, &mut encoder);
             if video_frame.is_end {
@@ -150,6 +147,8 @@ impl VideoFrameProcessor {
                 break;
             }
         }
+        Runtime::new().unwrap().block_on(uploader::upload_file(&p));
+        fs::remove_file(p).unwrap();
     }
 
     fn process_frame(&mut self, mut frame: Frame, encoder: &mut Video) -> () {
@@ -211,9 +210,9 @@ impl VideoFrameProcessor {
     }
 
     fn calc_pts(&mut self, ts: DateTime<Utc>) -> Option<i64> {
-        match (self.previous_frame_time) {
+        match self.previous_frame_time {
             Some(t) => {
-                match (self.previous_pts) {
+                match self.previous_pts {
                     Some(p) => {
                         let delta = (ts - t).num_milliseconds();
                         // let result = ((delta as f64) / self.fps as f64).round() as i64 + p;

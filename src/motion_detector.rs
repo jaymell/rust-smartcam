@@ -6,8 +6,7 @@ use opencv::{
     imgproc::threshold, imgproc::CHAIN_APPROX_SIMPLE, imgproc::RETR_TREE, imgproc::THRESH_BINARY,
     prelude::*, types::VectorOfMat, Result,
 };
-use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::Receiver;
 
 use crate::frame::{Frame, VideoFrame};
 use crate::video_writer::VideoWriter;
@@ -48,7 +47,7 @@ impl MotionDetector {
                     continue;
                 }
             };
-            let mut frame = match org_frame.downsample() {
+            let frame = match org_frame.downsample() {
                 Ok(downsampled) => downsampled,
                 Err(error) => {
                     error!("Failed to downsample frame: {:?}", error);

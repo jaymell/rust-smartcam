@@ -7,6 +7,7 @@ mod frame_viewer;
 mod logger;
 mod motion_detector;
 use self::motion_detector::MotionDetector;
+mod uploader;
 mod video_writer;
 
 use crate::frame::Frame;

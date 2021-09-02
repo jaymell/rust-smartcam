@@ -1,8 +1,5 @@
-use std::sync::mpsc::Sender;
-
 use opencv::{prelude::*, videoio, Result};
-
-use chrono::{DateTime, Utc};
+use std::sync::mpsc::Sender;
 use std::time::SystemTime;
 
 use crate::frame::Frame;
@@ -20,7 +17,7 @@ pub fn start(sender: Sender<Frame>) -> Result<()> {
     }
 
     // Dump first images just b/c:
-    for i in 1..10 {
+    for _ in 1..10 {
         let mut img = Mat::default();
         cam.read(&mut img)?;
         drop(img);
