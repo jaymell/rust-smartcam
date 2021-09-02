@@ -1,0 +1,20 @@
+[package]
+name = "smartcam"
+version = "0.1.0"
+authors = ["jaymell"]
+edition = "2018"
+
+[dependencies]
+chrono = "0.4"
+libc     = "0.2"
+log = "0.4"
+tokio = { version = "1", features = ["full"] }
+
+aws-sdk-s3 = { git = "https://github.com/awslabs/aws-sdk-rust", tag = "v0.0.16-alpha", package = "aws-sdk-s3" }
+opencv = { version = "0.53", features=["clang-runtime"] }
+ffmpeg-next = { path = "../rust-ffmpeg" }
+ffmpeg-sys-next = { path = "../rust-ffmpeg-sys" }
+#ffmpeg-next = "4.4.0"
+#ffmpeg-sys-next = "4.4.0"
+
+

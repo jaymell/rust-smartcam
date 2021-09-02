@@ -123,7 +123,6 @@ impl VideoFrameProcessor {
         encoder.set_width(frame.width());
         encoder.set_height(frame.height());
         encoder.set_format(VideoFrameProcessor::video_format());
-        // FIXME
         encoder.set_time_base(Rational::new(1, self.fps.into()));
 
         if global_header {
@@ -186,7 +185,6 @@ impl VideoFrameProcessor {
                 .run(&video_frame, &mut converted)
                 .unwrap();
             let pts = Some(self.calc_pts(frame.time()).unwrap_or(0));
-            // let pts = Some(self.frame_count);
             converted.set_pts(pts);
 
             encoder.send_frame(&converted).unwrap();
