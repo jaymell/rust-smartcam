@@ -19,5 +19,6 @@ ffmpeg-next = { path = "../rust-ffmpeg" }
 ffmpeg-sys-next = { path = "../rust-ffmpeg-sys" }
 #ffmpeg-next = "4.4.0"
 #ffmpeg-sys-next = "4.4.0"
+v4l = { path = "../libv4l-rs" }
 
 

@@ -140,7 +140,8 @@ impl MotionDetector {
                 }
             }
 
-            if let Err(error) = highgui::imshow(window, &dilated) {
+            // if let Err(error) = highgui::imshow(window, &dilated) {
+            if let Err(error) = highgui::imshow(window, &org_frame.img()) {
                 error!("highgui::imshow failed: {:?}", error);
                 continue;
             }

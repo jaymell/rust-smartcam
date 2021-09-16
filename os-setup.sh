@@ -1,4 +1,49 @@
-sudo apt-get install git build-essential cmake qt5-default qtscript5-dev libssl-dev qttools5-dev qttools5-dev-tools qtmultimedia5-dev libqt5svg5-dev libqt5webkit5-dev libsdl2-dev libasound2 libxmu-dev libxi-dev freeglut3-dev libasound2-dev libjack-jackd2-dev libxrandr-dev libqt5xmlpatterns5-dev libqt5xmlpatterns5 libavutil-dev libavformat ffmpeg libffmpeg-dev sdl libavformat libavformat-dev clang libavcodec-dev libavformat-dev libavutil-dev pkg-config libavfilter-dev libabdevice-dev
+sudo apt-get install \
+  git \
+  build-essential \
+  cmake \
+  qt5-default \
+  clang \
+  ffmpeg \
+  freeglut3-dev \
+  libabdevice-dev \
+  libasound2 \
+  libasound2-dev \
+  libavcodec-dev \
+  libavfilter-dev \
+  libavformat-dev \
+  libavutil-dev \
+  libffmpeg-dev \
+  libjack-jackd2-dev \
+  libqt5svg5-dev \
+  libqt5webkit5-dev \
+  libqt5xmlpatterns5 \
+  libqt5xmlpatterns5-dev \
+  libsdl2-dev \
+  libssl-dev \
+  libxi-dev \
+  libxmu-dev \
+  libxrandr-dev \
+  pkg-config \
+  qtmultimedia5-dev \
+  qtscript5-dev \
+  qttools5-dev \
+  qttools5-dev-tools \
+  sdl \
+  gcc-arm-linux-gnueabihf
+
+
+### build setup
+apt-get install qemu-system-arm qemu-efi
+
+dd if=/dev/zero of=flash0.img bs=1M count=64
+dd if=/usr/share/qemu-efi/QEMU_EFI.fd of=flash0.img conv=notrunc
+dd if=/dev/zero of=flash1.img bs=1M count=64
+
+sudo qemu-system-aarch64 -m 1024 -cpu cortex-a57 -M virt -nographic -pflash flash0.img -pflash flash1.img \
+  -drive if=none,file=ubuntu-21.04-preinstalled-server-arm64+raspi.img.xz,id=hd0 \
+  -device virtio-blk-device,drive=hd0 -netdev type=tap,id=net0 \
+  -device virtio-net-device,netdev=net0,mac=E0:94:29:1F:DE:83
 
 OPENCV_VERSION=4.5.2
 BUILD_FLAGS="

@@ -18,7 +18,7 @@ fn main() -> () {
     let (frame_tx, frame_rx) = mpsc::channel::<Frame>();
 
     let frame_reader_thread = thread::spawn(move || -> () {
-        frame_reader::start(frame_tx);
+        frame_reader::start_v4l(frame_tx);
     });
 
     let motion_detector_thread = thread::spawn(move || -> () {
