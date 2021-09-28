@@ -1,24 +1,29 @@
 use std::{sync::mpsc, thread};
 
+mod config;
 mod frame;
 mod frame_reader;
-mod frame_splitter;
 mod frame_viewer;
 mod logger;
 mod motion_detector;
-use self::motion_detector::MotionDetector;
 mod uploader;
 mod video_writer;
 
+use self::motion_detector::MotionDetector;
 use crate::frame::Frame;
 
 fn main() -> () {
+    let config = config::load_config(None);
+
     logger::init().unwrap();
 
     let (frame_tx, frame_rx) = mpsc::channel::<Frame>();
 
     let frame_reader_thread = thread::spawn(move || -> () {
-        frame_reader::start_v4l(frame_tx);
+        match config.cameras[0].camera_type.as_str() {
+            "rtsp" => frame_reader::start_rtsp(vec![frame_tx], &(config.cameras[0]).source),
+            _ => frame_reader::start_v4l(vec![frame_tx]),
+        };
     });
 
     let motion_detector_thread = thread::spawn(move || -> () {

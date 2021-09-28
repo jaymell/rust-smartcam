@@ -22,3 +22,5 @@ ffmpeg-sys-next = { path = "../rust-ffmpeg-sys" }
 v4l = { path = "../libv4l-rs" }
 
 
+toml = "0.5.8"
+serde = { version = "1.0.130",  features = ["derive"] }

@@ -7,6 +7,8 @@ use opencv::{
     prelude::*, types::VectorOfMat, Result,
 };
 use std::sync::mpsc::Receiver;
+use std::thread::sleep;
+use std::time;
 
 use crate::frame::{Frame, VideoFrame};
 use crate::video_writer::VideoWriter;
@@ -33,6 +35,12 @@ impl MotionDetector {
     }
 
     pub fn start(&mut self) -> Result<()> {
+
+        // Dump first images:
+        for _ in 1..10 {
+            self.receiver.recv();
+        }
+
         let mut previous = self.receiver.recv().unwrap().downsample()?;
         let window = "motion detection";
         debug!("opening motion detection window");

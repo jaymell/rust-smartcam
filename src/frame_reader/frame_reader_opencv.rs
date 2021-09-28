@@ -17,13 +17,6 @@ pub fn start(sender: Sender<Frame>) -> Result<()> {
         panic!("Unable to open default camera!");
     }
 
-    // Dump first images just b/c:
-    for _ in 1..10 {
-        let mut img = Mat::default();
-        cam.read(&mut img)?;
-        drop(img);
-    }
-
     let mut frame_count = 0;
     let start = Instant::now();
     loop {

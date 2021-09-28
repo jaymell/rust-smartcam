@@ -2,7 +2,10 @@ use log::{debug, warn};
 use opencv::core::Mat_AUTO_STEP;
 use opencv::core::Scalar;
 use opencv::core::{CV_8UC1, CV_8UC2, CV_8UC3};
-use opencv::{prelude::*, videoio, Result};
+use opencv::{prelude::*, videoio};
+use std::convert::TryInto;
+use std::error::Error;
+use std::slice::Windows;
 use std::sync::mpsc::Sender;
 use std::time::Instant;
 use std::time::SystemTime;
@@ -18,7 +21,7 @@ pub enum Format {
     YUYV,
 }
 
-fn yuyv_to_bgr(buf: &[u8]) -> Result<Vec<u8>> {
+fn yuyv_to_bgr(buf: &[u8]) -> Result<Vec<u8>, Box<Error>> {
     /*
     Cr aka V aka red
     Cb aka U aka blue
@@ -27,15 +30,14 @@ fn yuyv_to_bgr(buf: &[u8]) -> Result<Vec<u8>> {
     B = Y + 1.772 (Cb-128.0)
     */
 
-    let dst_len = buf.len() as f64 * 1.5;
     let mut mat_buf = Vec::new();
 
-    let mut i = 0;
-    while i < buf.len() {
-        let y1 = buf[i] as f64;
-        let u = buf[i + 1] as f64;
-        let y2 = buf[i + 2] as f64;
-        let v = buf[i + 3] as f64;
+    buf.windows(4).for_each(|s| {
+        let [y1, u, y2, v]: [u8; 4] = s.try_into().unwrap();
+        let y1 = y1 as f64;
+        let u = u as f64;
+        let y2 = y2 as f64;
+        let v = v as f64;
 
         let p1_b = (y1 + (1.772 * (u - 128.0))) as u8;
         let p1_g = (y1 - (0.34414 * (u - 128.0)) - (0.71414 * (v - 128.0))) as u8;
@@ -51,20 +53,22 @@ fn yuyv_to_bgr(buf: &[u8]) -> Result<Vec<u8>> {
         mat_buf.push(p2_b);
         mat_buf.push(p2_g);
         mat_buf.push(p2_r);
-
-        i = i + 4;
-    }
+    });
     Ok(mat_buf)
 }
 
-fn to_bgr(buf: &[u8], fourcc: &str) -> Result<Vec<u8>> {
+fn to_bgr(buf: &[u8], fourcc: &str) -> Result<Vec<u8>, Box<Error>> {
     match fourcc {
         "YUYV" => yuyv_to_bgr(buf),
         _ => panic!("Not supported"),
     }
 }
 
-pub fn start(sender: Sender<Frame>) -> Result<()> {
+pub fn start(senders: Vec<Sender<Frame>>) -> Result<(), Box<Error>> {
+    if senders.len() == 0 {
+        panic!("No frame recipients specified");
+    }
+
     // FIXME -- get this smarter:
     let path = "/dev/video0";
     println!("Using device: {}\n", path);
@@ -77,12 +81,6 @@ pub fn start(sender: Sender<Frame>) -> Result<()> {
     println!("fourcc: {}", fourcc);
 
     let mut stream = MmapStream::with_buffers(&mut dev, Type::VideoCapture, buffer_count).unwrap();
-
-    // Dump first images just b/c:
-    for _ in 1..10 {
-        stream.next().unwrap();
-    }
-
     let mut frame_count = 0;
     let start = Instant::now();
 
@@ -108,7 +106,14 @@ pub fn start(sender: Sender<Frame>) -> Result<()> {
                 continue;
             }
 
-            sender.send(frame).unwrap();
+            if senders.len() == 1 {
+                senders[0].send(frame).unwrap();
+            } else {
+                for s in &senders {
+                    let f = frame.clone();
+                    s.send(f).unwrap();
+                }
+            }
         }
 
         frame_count += 1;

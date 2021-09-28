@@ -1,23 +1,37 @@
-// pub struct FrameViewer {
-// }
+use opencv::{core::Point_, core::Scalar_, highgui};
+use std::sync::mpsc::Receiver;
 
-// let frame_viewer = thread::spawn(move || -> Result<()> {
+use crate::frame::Frame;
 
-//     // let window = "video capture";
-//   //   println!("opening video capture window");
-//     // highgui::named_window(window, highgui::WINDOW_AUTOSIZE)?;
-//   //   println!("opening video capture window DONE");
+pub fn start(receiver: Receiver<Frame>) -> () {
+    let window = "video capture";
+    println!("opening video capture window");
+    highgui::named_window(window, highgui::WINDOW_AUTOSIZE).unwrap();
+    println!("opening video capture window DONE");
 
-//     let font = highgui::font_qt("", 12, Scalar_::new(40.0, 252.0, 3.0, 0.0),
-//       highgui::QT_FONT_NORMAL, highgui::QT_STYLE_NORMAL, 0)?;
+    let font = highgui::font_qt(
+        "",
+        12,
+        Scalar_::new(40.0, 252.0, 3.0, 0.0),
+        highgui::QT_FONT_NORMAL,
+        highgui::QT_STYLE_NORMAL,
+        0,
+    )
+    .unwrap();
 
-//     loop {
-//       let frame = viewer_rx.recv().unwrap();
-//       // highgui::add_text(&frame.img(), &frame.time.to_rfc3339(), Point::new(frame.width/3,frame.height-(frame.height/6)), &font)?;
-//     //   highgui::imshow(window, &frame.img())?;
-//     //   highgui::wait_key(1)?;
-//     }
-
-//     Ok(())
-
-//   });
+    loop {
+        let frame = receiver.recv().unwrap();
+        highgui::add_text(
+            &frame.img(),
+            &frame.time().to_rfc3339(),
+            Point_::new(
+                frame.width() as i32 / 3,
+                (frame.height() - (frame.height() / 6)) as i32,
+            ),
+            &font,
+        )
+        .unwrap();
+        highgui::imshow(window, &frame.img()).unwrap();
+        highgui::wait_key(1).unwrap();
+    }
+}
