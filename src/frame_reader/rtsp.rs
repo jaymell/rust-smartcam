@@ -35,7 +35,7 @@ fn rgb_to_bgr(buf: &mut [u8]) -> Result<(), Box<Error>> {
     Ok(())
 }
 
-pub fn start(senders: Vec<Sender<Frame>>, source: &String) -> Result<(), Box<Error>> {
+pub fn start(senders: Vec<Sender<Frame>>, source: &str) -> Result<(), Box<Error>> {
     let mut ictx = input(&source).unwrap();
     let input = ictx.streams().best(Type::Video).unwrap();
     let video_stream_index = input.index();

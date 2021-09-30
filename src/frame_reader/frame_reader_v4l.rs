@@ -1,21 +1,18 @@
-use log::{debug, warn};
 use opencv::core::Mat_AUTO_STEP;
-use opencv::core::Scalar;
-use opencv::core::{CV_8UC1, CV_8UC2, CV_8UC3};
-use opencv::{prelude::*, videoio};
+use opencv::core::CV_8UC3;
+use opencv::{prelude::*};
 use std::convert::TryInto;
 use std::error::Error;
-use std::slice::Windows;
 use std::sync::mpsc::Sender;
 use std::time::Instant;
 use std::time::SystemTime;
-
-use crate::frame::Frame;
 use v4l::buffer::Type;
 use v4l::io::traits::CaptureStream;
 use v4l::prelude::*;
 use v4l::video::Capture;
-use v4l::FourCC;
+
+use crate::frame::Frame;
+
 
 pub enum Format {
     YUYV,

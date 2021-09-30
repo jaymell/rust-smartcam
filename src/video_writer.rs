@@ -10,7 +10,7 @@ use ffmpeg_next as ffmpeg;
 use ffmpeg_sys_next as ffs;
 use ffs::{av_frame_alloc, av_frame_get_buffer, avpicture_fill, AVPicture, AVPixelFormat};
 use libc::c_int;
-use log::{debug, warn};
+use log::{debug, warn, error};
 use opencv::core::prelude::MatTrait;
 use std::fs;
 use std::mem;
@@ -19,6 +19,7 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 use tokio::runtime::Runtime;
+use std::error::Error;
 
 pub struct VideoWriter {
     sender: Sender<VideoFrame>,
@@ -28,9 +29,12 @@ impl VideoWriter {
     pub fn new() -> Self {
         let (video_tx, video_rx) = mpsc::channel::<VideoFrame>();
 
-        let thread = thread::spawn(|| -> () {
+        thread::spawn(|| -> () {
             let mut video_frame_proc = VideoFrameProcessor::new(video_rx, 1000);
-            video_frame_proc.receive();
+            match video_frame_proc.receive() {
+                Ok(p) => VideoWriter::handle_upload(p),
+                Err(e) => error!("Video writing failed: {}", e)
+            }
         });
 
         Self { sender: video_tx }
@@ -38,6 +42,20 @@ impl VideoWriter {
 
     pub fn send_frame(&self, frame: VideoFrame) -> () {
         self.sender.send(frame).unwrap();
+    }
+
+    fn handle_upload(path: String) -> () {
+        match Runtime::new().unwrap().block_on(uploader::upload_file(&path)) {
+                Ok(_) => {
+                    debug!("Deleting file {}", &path);
+                    fs::remove_file(path).unwrap();
+                },
+                Err(e) => {
+                    error!("File download failed: {}", e);
+                    warn!("Skipping deletion due to upload failure; video retained at {}", &path);
+                }
+            }
+
     }
 }
 
@@ -94,7 +112,7 @@ impl VideoFrameProcessor {
         // AVPixelFormat::AV_PIX_FMT_BGR24
     }
 
-    pub fn receive(&mut self) -> () {
+    pub fn receive(&mut self) -> Result<String, Box<dyn Error>> {
         // Get first frame:
         let video_frame = self.receiver.recv().unwrap();
         let frame = video_frame.frame;
@@ -103,10 +121,11 @@ impl VideoFrameProcessor {
         let f = format!("/tmp/{}.mkv", frame.time().format("%+"));
         let p = Path::new(&f);
 
-        ffmpeg::util::log::set_level(Level::Trace);
+        // ffmpeg::util::log::set_level(Level::Trace);
         ffmpeg::init().unwrap();
 
-        let x264_opts = parse_opts("enable-debug=3".to_string());
+        // let x264_opts = parse_opts("enable-debug=3".to_string());
+        let x264_opts = parse_opts("".to_string());
 
         let mut octx = format::output(&p).unwrap();
 
@@ -138,7 +157,7 @@ impl VideoFrameProcessor {
         loop {
             let video_frame = self.receiver.recv().unwrap();
             let frame = video_frame.frame;
-            let av_frame = self.process_frame(frame, &mut encoder);
+            self.process_frame(frame, &mut encoder);
             self.receive_and_process_encoded_packets(&mut octx, &mut encoder);
             if video_frame.is_end {
                 debug!("Last frame receieved, sending EOF");
@@ -147,8 +166,8 @@ impl VideoFrameProcessor {
                 break;
             }
         }
-        Runtime::new().unwrap().block_on(uploader::upload_file(&p));
-        fs::remove_file(p).unwrap();
+
+        Ok(p.to_str().unwrap().to_string())
     }
 
     fn process_frame(&mut self, mut frame: Frame, encoder: &mut Video) -> () {
@@ -232,4 +251,6 @@ impl VideoFrameProcessor {
             None => None,
         }
     }
+
+
 }

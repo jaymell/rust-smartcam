@@ -4,11 +4,9 @@ use opencv::{
     core::absdiff, core::Point, core::BORDER_CONSTANT, highgui, imgproc::contour_area,
     imgproc::dilate, imgproc::find_contours, imgproc::morphology_default_border_value,
     imgproc::threshold, imgproc::CHAIN_APPROX_SIMPLE, imgproc::RETR_TREE, imgproc::THRESH_BINARY,
-    prelude::*, types::VectorOfMat, Result,
+    prelude::*, types::VectorOfMat,
 };
 use std::sync::mpsc::Receiver;
-use std::thread::sleep;
-use std::time;
 
 use crate::frame::{Frame, VideoFrame};
 use crate::video_writer::VideoWriter;
@@ -34,17 +32,17 @@ impl MotionDetector {
         }
     }
 
-    pub fn start(&mut self) -> Result<()> {
+    pub fn start(&mut self) -> () {
 
         // Dump first images:
-        for _ in 1..10 {
-            self.receiver.recv();
+        for _ in 1..20 {
+            self.receiver.recv().unwrap();
         }
 
-        let mut previous = self.receiver.recv().unwrap().downsample()?;
+        let mut previous = self.receiver.recv().unwrap().downsample().unwrap();
         let window = "motion detection";
         debug!("opening motion detection window");
-        highgui::named_window(window, highgui::WINDOW_AUTOSIZE)?;
+        highgui::named_window(window, highgui::WINDOW_AUTOSIZE).unwrap();
         debug!("opening motion detection window DONE");
 
         loop {
@@ -64,10 +62,10 @@ impl MotionDetector {
             };
 
             let mut delta = Mat::default();
-            absdiff(&previous.img(), &frame.img(), &mut delta);
+            absdiff(&previous.img(), &frame.img(), &mut delta).unwrap();
 
             let mut thresh = Mat::default();
-            threshold(&delta, &mut thresh, 25.0, 255.0, THRESH_BINARY);
+            threshold(&delta, &mut thresh, 25.0, 255.0, THRESH_BINARY).unwrap();
 
             let mut dilated = Mat::default();
 
@@ -87,7 +85,7 @@ impl MotionDetector {
                 1,
                 BORDER_CONSTANT,
                 bv,
-            );
+            ).unwrap();
 
             let mut contours = VectorOfMat::new();
 
@@ -161,8 +159,6 @@ impl MotionDetector {
 
             previous = frame;
         }
-
-        Ok(())
     }
 
     fn send_frame(&mut self, frame: VideoFrame) -> () {
