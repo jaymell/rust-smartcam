@@ -10,8 +10,9 @@ use ffmpeg_next as ffmpeg;
 use ffmpeg_sys_next as ffs;
 use ffs::{av_frame_alloc, av_frame_get_buffer, avpicture_fill, AVPicture, AVPixelFormat};
 use libc::c_int;
-use log::{debug, warn, error};
+use log::{debug, error, warn};
 use opencv::core::prelude::MatTrait;
+use std::error::Error;
 use std::fs;
 use std::mem;
 use std::path::Path;
@@ -19,7 +20,6 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 use tokio::runtime::Runtime;
-use std::error::Error;
 
 pub struct VideoWriter {
     sender: Sender<VideoFrame>,
@@ -33,7 +33,7 @@ impl VideoWriter {
             let mut video_frame_proc = VideoFrameProcessor::new(video_rx, 1000);
             match video_frame_proc.receive() {
                 Ok(p) => VideoWriter::handle_upload(p),
-                Err(e) => error!("Video writing failed: {}", e)
+                Err(e) => error!("Video writing failed: {}", e),
             }
         });
 
@@ -45,17 +45,22 @@ impl VideoWriter {
     }
 
     fn handle_upload(path: String) -> () {
-        match Runtime::new().unwrap().block_on(uploader::upload_file(&path)) {
-                Ok(_) => {
-                    debug!("Deleting file {}", &path);
-                    fs::remove_file(path).unwrap();
-                },
-                Err(e) => {
-                    error!("File download failed: {}", e);
-                    warn!("Skipping deletion due to upload failure; video retained at {}", &path);
-                }
+        match Runtime::new()
+            .unwrap()
+            .block_on(uploader::upload_file(&path))
+        {
+            Ok(_) => {
+                debug!("Deleting file {}", &path);
+                fs::remove_file(path).unwrap();
             }
-
+            Err(e) => {
+                error!("File download failed: {}", e);
+                warn!(
+                    "Skipping deletion due to upload failure; video retained at {}",
+                    &path
+                );
+            }
+        }
     }
 }
 
@@ -251,6 +256,4 @@ impl VideoFrameProcessor {
             None => None,
         }
     }
-
-
 }

@@ -13,9 +13,9 @@ use self::motion_detector::MotionDetector;
 use crate::frame::Frame;
 
 fn main() -> () {
-    let config = config::load_config(None);
-
     logger::init().unwrap();
+
+    let config = config::load_config(None);
 
     let (frame_tx, frame_rx) = mpsc::channel::<Frame>();
 

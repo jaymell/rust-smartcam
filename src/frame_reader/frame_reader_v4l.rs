@@ -1,6 +1,6 @@
 use opencv::core::Mat_AUTO_STEP;
 use opencv::core::CV_8UC3;
-use opencv::{prelude::*};
+use opencv::prelude::*;
 use std::convert::TryInto;
 use std::error::Error;
 use std::sync::mpsc::Sender;
@@ -12,7 +12,6 @@ use v4l::prelude::*;
 use v4l::video::Capture;
 
 use crate::frame::Frame;
-
 
 pub enum Format {
     YUYV,

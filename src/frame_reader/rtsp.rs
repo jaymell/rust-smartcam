@@ -6,23 +6,17 @@ use ffmpeg::software::scaling::{context::Context, flag::Flags};
 use ffmpeg::util::frame::video::Video;
 use log::{debug, warn};
 use opencv::core::Mat_AUTO_STEP;
-use opencv::core::{CV_8UC1, CV_8UC2, CV_8UC3};
+use opencv::core::CV_8UC3;
 use opencv::prelude::*;
-use std::env;
 use std::error::Error;
-use std::fs::File;
-use std::io::prelude::*;
 use std::sync::mpsc::Sender;
-use std::time::Instant;
 use std::time::SystemTime;
 
-use ffmpeg_sys_next::AVPixelFormat::AV_PIX_FMT_RGB24;
-use ffmpeg_sys_next::{av_image_copy_to_buffer, av_image_get_buffer_size};
 
 use crate::frame::Frame;
 
 /// swap red and blue -- not needed but used for timing comparison:
-fn rgb_to_bgr(buf: &mut [u8]) -> Result<(), Box<Error>> {
+fn rgb_to_bgr(buf: &mut [u8]) -> Result<(), Box<dyn Error>> {
     let mut i = 0;
 
     while i < buf.len() {
@@ -35,7 +29,7 @@ fn rgb_to_bgr(buf: &mut [u8]) -> Result<(), Box<Error>> {
     Ok(())
 }
 
-pub fn start(senders: Vec<Sender<Frame>>, source: &str) -> Result<(), Box<Error>> {
+pub fn start(senders: Vec<Sender<Frame>>, source: &str) -> Result<(), Box<dyn Error>> {
     let mut ictx = input(&source).unwrap();
     let input = ictx.streams().best(Type::Video).unwrap();
     let video_stream_index = input.index();
@@ -98,7 +92,13 @@ pub fn start(senders: Vec<Sender<Frame>>, source: &str) -> Result<(), Box<Error>
 
     for (stream, packet) in ictx.packets() {
         if stream.index() == video_stream_index {
-            decoder.send_packet(&packet).unwrap();
+            match decoder.send_packet(&packet) {
+                Ok(_) => (),
+                Err(e) => {
+                    warn!("Error sending packet: {} -- dropping", e);
+                    continue;
+                }
+            }
             receive_and_process_decoded_frames(&mut decoder).unwrap();
         }
     }

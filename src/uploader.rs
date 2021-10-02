@@ -1,9 +1,9 @@
 use aws_sdk_s3::{ByteStream, Client, Region};
-use aws_types::{config::Config};
+use aws_types::config::Config;
 use log::{debug, info};
+use std::error::Error;
 use std::fs;
 use std::path::Path;
-use std::error::Error;
 
 use crate::config;
 
@@ -16,7 +16,9 @@ pub async fn upload_file(path: &str) -> Result<(), Box<Error>> {
     if let Some(r) = env_config.region() {
         aws_config_builder.set_region(r.clone());
     } else {
-        aws_config_builder.set_region(Region::new(app_config.cloud.region.expect("Region not defined")));
+        aws_config_builder.set_region(Region::new(
+            app_config.cloud.region.expect("Region not defined"),
+        ));
     }
     let bucket = &app_config.cloud.bucket;
     let client = Client::new(&aws_config_builder.build());
@@ -30,7 +32,6 @@ pub async fn upload_file(path: &str) -> Result<(), Box<Error>> {
         p, bucket, key
     );
 
-
     match client
         .put_object()
         .bucket(bucket)
@@ -41,16 +42,14 @@ pub async fn upload_file(path: &str) -> Result<(), Box<Error>> {
         // .content_md5(@#$@#$)
         .send()
         .await
-        {
-            Ok(_) => {
-                info!(
-                    "Successfully uploaded path {:?} to BUCKET {:?} key {:?}",
-                    p, bucket, key
-                );
-                Ok(())
-            },
-            Err(e) => Err(Box::new(e))
+    {
+        Ok(_) => {
+            info!(
+                "Successfully uploaded path {:?} to BUCKET {:?} key {:?}",
+                p, bucket, key
+            );
+            Ok(())
         }
-
-
+        Err(e) => Err(Box::new(e)),
+    }
 }
