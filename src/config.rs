@@ -19,6 +19,7 @@ pub struct CameraConfig {
 
 #[derive(Deserialize)]
 pub struct CloudConfig {
+    pub enabled: Option<bool>,
     pub bucket: String,
     pub region: Option<String>,
 }

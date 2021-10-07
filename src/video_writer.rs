@@ -1,5 +1,5 @@
 use crate::frame::{Frame, VideoFrame};
-use crate::uploader;
+use crate::upload;
 use chrono;
 use chrono::{DateTime, Utc};
 use ffmpeg::{
@@ -10,7 +10,7 @@ use ffmpeg_next as ffmpeg;
 use ffmpeg_sys_next as ffs;
 use ffs::{av_frame_alloc, av_frame_get_buffer, avpicture_fill, AVPicture, AVPixelFormat};
 use libc::c_int;
-use log::{debug, error, warn};
+use log::{info, debug, error, warn};
 use opencv::core::prelude::MatTrait;
 use std::error::Error;
 use std::fs;
@@ -20,6 +20,7 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 use tokio::runtime::Runtime;
+use crate::config;
 
 pub struct VideoWriter {
     sender: Sender<VideoFrame>,
@@ -27,12 +28,21 @@ pub struct VideoWriter {
 
 impl VideoWriter {
     pub fn new() -> Self {
+
         let (video_tx, video_rx) = mpsc::channel::<VideoFrame>();
 
         thread::spawn(|| -> () {
+            let app_config = config::load_config(None);
             let mut video_frame_proc = VideoFrameProcessor::new(video_rx, 1000);
             match video_frame_proc.receive() {
-                Ok(p) => VideoWriter::handle_upload(p),
+                Ok(p) => {
+                    if let Some(b) = app_config.cloud.enabled {
+                        if b {  VideoWriter::handle_upload(p) }
+                        else {
+                            info!("Upload disabled -- video retained at {}", &p);
+                        }
+                    }
+                },
                 Err(e) => error!("Video writing failed: {}", e),
             }
         });
@@ -47,14 +57,14 @@ impl VideoWriter {
     fn handle_upload(path: String) -> () {
         match Runtime::new()
             .unwrap()
-            .block_on(uploader::upload_file(&path))
+            .block_on(upload::upload_file(&path))
         {
             Ok(_) => {
                 debug!("Deleting file {}", &path);
                 fs::remove_file(path).unwrap();
             }
             Err(e) => {
-                error!("File download failed: {}", e);
+                error!("File upload failed: {}", e);
                 warn!(
                     "Skipping deletion due to upload failure; video retained at {}",
                     &path

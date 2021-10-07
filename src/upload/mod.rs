@@ -7,7 +7,12 @@ use std::path::Path;
 
 use crate::config;
 
-pub async fn upload_file(path: &str) -> Result<(), Box<Error>> {
+mod error;
+
+pub use error::UploadError;
+
+
+pub async fn upload_file(path: &str) -> Result<(), Box<dyn Error>> {
     let p = Path::new(path);
     let app_config = config::load_config(None);
     let env_config = aws_config::load_from_env().await;
@@ -16,9 +21,11 @@ pub async fn upload_file(path: &str) -> Result<(), Box<Error>> {
     if let Some(r) = env_config.region() {
         aws_config_builder.set_region(r.clone());
     } else {
-        aws_config_builder.set_region(Region::new(
-            app_config.cloud.region.expect("Region not defined"),
-        ));
+        if let Some(r) = app_config.cloud.region {
+            aws_config_builder.set_region(Region::new(r));
+        } else {
+            return Err(Box::new(UploadError::new("Region not set")));
+        }
     }
     let bucket = &app_config.cloud.bucket;
     let client = Client::new(&aws_config_builder.build());

@@ -121,6 +121,8 @@ impl MotionDetector {
             let contours = contours.unwrap();
 
             let mut contour_frame = org_frame.clone();
+
+            let mut frame_sent = false;
             for c in contours.iter() {
                 trace!("Contours: {:?}", c);
                 let area = match imgproc::contour_area(&c, false) {
@@ -133,11 +135,9 @@ impl MotionDetector {
 
                 if area as i32 >= self.min_threshold_size {
                     // Motion detected:
-
-                    // FIXME -- this doesn't need to be done in foor loop:
                     match imgproc::draw_contours(
                         contour_frame.img_mut(),
-                        &c,
+                        &contours,
                         -1,
                         Scalar::new(0.0, 0.0, 255.0, 0.0),
                         4,
@@ -150,12 +150,14 @@ impl MotionDetector {
                         Err(e) => error!("Drawing contours failed: {}", e),
                     }
 
+                    // send first frame:
                     if !self.in_motion {
                         self.send_frame(VideoFrame {
                             frame: contour_frame.clone(),
                             is_start: true,
                             is_end: false,
                         });
+                        frame_sent = true;
                     }
                     self.in_motion = true;
                     self.in_motion_window = true;
@@ -166,7 +168,7 @@ impl MotionDetector {
                 }
             }
 
-            if self.in_motion_window {
+            if self.in_motion_window && !frame_sent {
                 if !check_in_motion_window(frame.time(), self.last_motion_time) {
                     debug!("Motion window closing.");
                     self.in_motion_window = false;
@@ -183,9 +185,11 @@ impl MotionDetector {
                         is_end: false,
                     });
                 }
+                frame_sent = true;
             }
 
-            // if let Err(error) = highgui::imshow(window, &dilated) {
+            previous = frame;
+
             if let Err(error) = highgui::imshow(window, &contour_frame.img()) {
                 error!("highgui::imshow failed: {:?}", error);
                 continue;
@@ -195,8 +199,6 @@ impl MotionDetector {
                 error!("highgui::wait_key failed: {:?}", error);
                 continue;
             }
-
-            previous = frame;
         }
     }
 

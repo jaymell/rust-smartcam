@@ -13,11 +13,8 @@ use v4l::video::Capture;
 
 use crate::frame::Frame;
 
-pub enum Format {
-    YUYV,
-}
 
-fn yuyv_to_bgr(buf: &[u8]) -> Result<Vec<u8>, Box<Error>> {
+fn yuyv_to_bgr(buf: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
     /*
     Cr aka V aka red
     Cb aka U aka blue
@@ -53,14 +50,14 @@ fn yuyv_to_bgr(buf: &[u8]) -> Result<Vec<u8>, Box<Error>> {
     Ok(mat_buf)
 }
 
-fn to_bgr(buf: &[u8], fourcc: &str) -> Result<Vec<u8>, Box<Error>> {
+fn to_bgr(buf: &[u8], fourcc: &str) -> Result<Vec<u8>, Box<dyn Error>> {
     match fourcc {
         "YUYV" => yuyv_to_bgr(buf),
         _ => panic!("Not supported"),
     }
 }
 
-pub fn start(senders: Vec<Sender<Frame>>) -> Result<(), Box<Error>> {
+pub fn start(senders: Vec<Sender<Frame>>) -> Result<(), Box<dyn Error>> {
     if senders.len() == 0 {
         panic!("No frame recipients specified");
     }
