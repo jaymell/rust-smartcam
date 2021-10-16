@@ -1,16 +1,17 @@
+use crate::config;
 use crate::frame::{Frame, VideoFrame};
 use crate::upload;
 use chrono;
 use chrono::{DateTime, Utc};
 use ffmpeg::{
-    codec, codec::encoder::video::Video, format, format::Pixel, frame, util::log::level::Level,
-    util::rational::Rational, Dictionary, Packet,
+    codec, codec::encoder::video::Video, format, format::Pixel, frame, util::rational::Rational,
+    Dictionary, Packet,
 };
 use ffmpeg_next as ffmpeg;
 use ffmpeg_sys_next as ffs;
 use ffs::{av_frame_alloc, av_frame_get_buffer, avpicture_fill, AVPicture, AVPixelFormat};
 use libc::c_int;
-use log::{info, debug, error, warn};
+use log::{debug, error, info, warn};
 use opencv::core::prelude::MatTrait;
 use std::error::Error;
 use std::fs;
@@ -20,7 +21,6 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 use tokio::runtime::Runtime;
-use crate::config;
 
 pub struct VideoWriter {
     sender: Sender<VideoFrame>,
@@ -28,7 +28,6 @@ pub struct VideoWriter {
 
 impl VideoWriter {
     pub fn new() -> Self {
-
         let (video_tx, video_rx) = mpsc::channel::<VideoFrame>();
 
         thread::spawn(|| -> () {
@@ -37,12 +36,13 @@ impl VideoWriter {
             match video_frame_proc.receive() {
                 Ok(p) => {
                     if let Some(b) = app_config.cloud.enabled {
-                        if b {  VideoWriter::handle_upload(p) }
-                        else {
+                        if b {
+                            VideoWriter::handle_upload(p)
+                        } else {
                             info!("Upload disabled -- video retained at {}", &p);
                         }
                     }
-                },
+                }
                 Err(e) => error!("Video writing failed: {}", e),
             }
         });
@@ -55,10 +55,7 @@ impl VideoWriter {
     }
 
     fn handle_upload(path: String) -> () {
-        match Runtime::new()
-            .unwrap()
-            .block_on(upload::upload_file(&path))
-        {
+        match Runtime::new().unwrap().block_on(upload::upload_file(&path)) {
             Ok(_) => {
                 debug!("Deleting file {}", &path);
                 fs::remove_file(path).unwrap();
@@ -122,10 +119,10 @@ impl VideoFrameProcessor {
         // Pixel::BGR24
     }
 
-    fn video_format_raw() -> AVPixelFormat {
-        AVPixelFormat::AV_PIX_FMT_YUV420P
-        // AVPixelFormat::AV_PIX_FMT_BGR24
-    }
+    // fn video_format_raw() -> AVPixelFormat {
+    //     AVPixelFormat::AV_PIX_FMT_YUV420P
+    //     // AVPixelFormat::AV_PIX_FMT_BGR24
+    // }
 
     pub fn receive(&mut self) -> Result<String, Box<dyn Error>> {
         // Get first frame:

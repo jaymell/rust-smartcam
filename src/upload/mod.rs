@@ -11,7 +11,6 @@ mod error;
 
 pub use error::UploadError;
 
-
 pub async fn upload_file(path: &str) -> Result<(), Box<dyn Error>> {
     let p = Path::new(path);
     let app_config = config::load_config(None);
@@ -21,8 +20,8 @@ pub async fn upload_file(path: &str) -> Result<(), Box<dyn Error>> {
     if let Some(r) = env_config.region() {
         aws_config_builder.set_region(r.clone());
     } else {
-        if let Some(r) = app_config.cloud.region {
-            aws_config_builder.set_region(Region::new(r));
+        if let Some(r) = &app_config.cloud.region {
+            aws_config_builder.set_region(Region::new(r.clone()));
         } else {
             return Err(Box::new(UploadError::new("Region not set")));
         }

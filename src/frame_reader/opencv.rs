@@ -3,7 +3,7 @@ use std::sync::mpsc::Sender;
 use std::time::Instant;
 use std::time::SystemTime;
 
-use crate::frame::Frame;
+use crate::frame::{Colorspace, Frame};
 
 pub fn start(sender: Sender<Frame>) -> Result<()> {
     #[cfg(ocvrs_opencv_branch_32)]
@@ -24,7 +24,7 @@ pub fn start(sender: Sender<Frame>) -> Result<()> {
         let mut img = Mat::default();
         cam.read(&mut img)?;
 
-        let frame = Frame::new(img, Some(SystemTime::now().into()));
+        let frame = Frame::new(img, Colorspace::BGR, Some(SystemTime::now().into()));
         if frame.width() == 0 {
             continue;
         }

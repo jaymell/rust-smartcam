@@ -1,6 +1,6 @@
+use chrono::{DateTime, Utc};
 use log::{Level, LevelFilter, Metadata, Record, SetLoggerError};
 use std::time::SystemTime;
-use chrono::{DateTime, Utc};
 
 struct SimpleLogger;
 
@@ -12,7 +12,12 @@ impl log::Log for SimpleLogger {
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
             let now: DateTime<Utc> = SystemTime::now().into();
-            println!("[{}] {} - {}", now.to_rfc3339(), record.level(), record.args());
+            println!(
+                "[{}] {} - {}",
+                now.to_rfc3339(),
+                record.level(),
+                record.args()
+            );
         }
     }
 

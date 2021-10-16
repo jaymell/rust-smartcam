@@ -1,29 +1,19 @@
 use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use log::{debug, error, trace};
 use opencv::{
-    core,
-    core::Point,
-    core::Scalar,
-    core::BORDER_CONSTANT,
-    core::no_array,
-    highgui,
-    imgproc,
-    imgproc::LINE_AA,
-    imgproc::CHAIN_APPROX_SIMPLE,
-    imgproc::RETR_TREE,
-    imgproc::THRESH_BINARY,
-    prelude::*,
-    types::VectorOfMat,
+    core, core::no_array, core::Point, core::Scalar, core::BORDER_CONSTANT, highgui, imgproc,
+    imgproc::CHAIN_APPROX_SIMPLE, imgproc::LINE_AA, imgproc::RETR_TREE, imgproc::THRESH_BINARY,
+    prelude::*, types::VectorOfMat,
 };
-use std::sync::mpsc::Receiver;
 use std::error::Error;
+use std::sync::{mpsc::Receiver, Arc};
 
+use crate::config::load_config;
 use crate::frame::{Frame, VideoFrame};
 use crate::video_writer::VideoWriter;
-use crate::config::load_config;
 
 pub struct MotionDetector {
-    receiver: Receiver<Frame>,
+    receiver: Receiver<Arc<Frame>>,
     video_writer: Option<VideoWriter>,
     in_motion: bool,
     in_motion_window: bool,
@@ -69,9 +59,8 @@ fn find_contours(img: &Mat) -> Result<VectorOfMat, Box<dyn Error>> {
     Ok(contours)
 }
 
-
 impl MotionDetector {
-    pub fn new(receiver: Receiver<Frame>) -> Self {
+    pub fn new(receiver: Receiver<Arc<Frame>>) -> Self {
         let cfg = load_config(None);
         Self {
             receiver,
@@ -84,15 +73,15 @@ impl MotionDetector {
     }
 
     pub fn start(&mut self) -> () {
+
+        debug!("Starting motion detector");
+
         // Dump first images:
         for _ in 1..20 {
             self.receiver.recv().unwrap();
         }
 
         let mut previous = self.receiver.recv().unwrap().downsample().unwrap();
-        let window = "motion detection";
-        debug!("Opening motion detection window");
-        highgui::named_window(window, highgui::WINDOW_AUTOSIZE).unwrap();
 
         loop {
             let org_frame = match self.receiver.recv() {
@@ -120,7 +109,7 @@ impl MotionDetector {
             }
             let contours = contours.unwrap();
 
-            let mut contour_frame = org_frame.clone();
+            let mut contour_frame = (*org_frame).clone();
 
             let mut frame_sent = false;
             for c in contours.iter() {
@@ -189,16 +178,6 @@ impl MotionDetector {
             }
 
             previous = frame;
-
-            if let Err(error) = highgui::imshow(window, &contour_frame.img()) {
-                error!("highgui::imshow failed: {:?}", error);
-                continue;
-            }
-
-            if let Err(error) = highgui::wait_key(1) {
-                error!("highgui::wait_key failed: {:?}", error);
-                continue;
-            }
         }
     }
 

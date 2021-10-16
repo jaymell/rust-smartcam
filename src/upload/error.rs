@@ -3,18 +3,20 @@ use std::fmt;
 
 #[derive(Debug)]
 pub struct UploadError {
-    description: String
+    description: String,
 }
 
 impl UploadError {
     pub fn new(msg: &str) -> UploadError {
-        Self {description: msg.to_string() }
+        Self {
+            description: msg.to_string(),
+        }
     }
 }
 
 impl fmt::Display for UploadError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"{}", self.description)
+        write!(f, "{}", self.description)
     }
 }
 

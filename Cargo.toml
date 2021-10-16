@@ -10,6 +10,9 @@ futures = "0.3.17"
 libc     = "0.2"
 log = "0.4"
 tokio = { version = "1", features = ["full"] }
+gtk = "0.14.1"
+glib = "0.14.1"
+gdk-pixbuf = "0.14.0"
 
 aws-types = { git = "https://github.com/awslabs/aws-sdk-rust", tag = "v0.0.17-alpha", package = "aws-types" }
 aws-config = { git = "https://github.com/awslabs/aws-sdk-rust", tag = "v0.0.17-alpha", package = "aws-config" }
@@ -20,7 +23,8 @@ ffmpeg-sys-next = { path = "../rust-ffmpeg-sys" }
 #ffmpeg-next = "4.4.0"
 #ffmpeg-sys-next = "4.4.0"
 v4l = { path = "../libv4l-rs" }
-
+strum = "0.21"
+strum_macros = "0.21"
 
 toml = "0.5.8"
 serde = { version = "1.0.130",  features = ["derive"] }

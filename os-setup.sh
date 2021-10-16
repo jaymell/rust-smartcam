@@ -6,14 +6,12 @@ sudo apt-get install \
   clang \
   ffmpeg \
   freeglut3-dev \
-  libabdevice-dev \
   libasound2 \
   libasound2-dev \
   libavcodec-dev \
   libavfilter-dev \
   libavformat-dev \
   libavutil-dev \
-  libffmpeg-dev \
   libjack-jackd2-dev \
   libqt5svg5-dev \
   libqt5webkit5-dev \
@@ -29,8 +27,13 @@ sudo apt-get install \
   qtscript5-dev \
   qttools5-dev \
   qttools5-dev-tools \
-  sdl \
-  gcc-arm-linux-gnueabihf
+  gcc-arm-linux-gnueabihf \
+  libgtk-3-dev \
+  libjpeg-dev \
+  libtiff-dev \
+  libwebp-dev \
+  libavdevice-dev
+
 
 
 ### build setup

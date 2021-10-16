@@ -9,28 +9,17 @@ use opencv::core::Mat_AUTO_STEP;
 use opencv::core::CV_8UC3;
 use opencv::prelude::*;
 use std::error::Error;
-use std::sync::mpsc::Sender;
+use std::sync::{mpsc::Sender, Arc};
 use std::time::SystemTime;
 
+use crate::frame::{Colorspace, Frame};
 
-use crate::frame::Frame;
-
-/// swap red and blue -- not needed but used for timing comparison:
-fn rgb_to_bgr(buf: &mut [u8]) -> Result<(), Box<dyn Error>> {
-    let mut i = 0;
-
-    while i < buf.len() {
-        let temp = buf[i];
-        buf[i] = buf[i + 2];
-        buf[i + 2] = temp;
-
-        i = i + 3;
-    }
-    Ok(())
-}
-
-pub fn start(senders: Vec<Sender<Frame>>, source: &str) -> Result<(), Box<dyn Error>> {
-    let mut ictx = input(&source).unwrap();
+pub fn start(
+    senders: Vec<Sender<Arc<Frame>>>,
+    source: Option<&str>,
+    win_tx: Option<glib::Sender<Arc<Frame>>>,
+) -> Result<(), Box<dyn Error>> {
+    let mut ictx = input(&source.unwrap()).unwrap();
     let input = ictx.streams().best(Type::Video).unwrap();
     let video_stream_index = input.index();
 
@@ -46,7 +35,6 @@ pub fn start(senders: Vec<Sender<Frame>>, source: &str) -> Result<(), Box<dyn Er
         decoder.format(),
         decoder.width(),
         decoder.height(),
-        // Pixel::RGB24,
         Pixel::BGR24,
         decoder.width(),
         decoder.height(),
@@ -54,7 +42,6 @@ pub fn start(senders: Vec<Sender<Frame>>, source: &str) -> Result<(), Box<dyn Er
     )
     .unwrap();
 
-    let mut i = 0;
     let mut receive_and_process_decoded_frames =
         |decoder: &mut ffmpeg::decoder::Video| -> Result<(), ffmpeg::Error> {
             let mut decoded = Video::empty();
@@ -63,27 +50,27 @@ pub fn start(senders: Vec<Sender<Frame>>, source: &str) -> Result<(), Box<dyn Er
 
                 scaler.run(&decoded, &mut rgb_frame).unwrap();
 
-                let mut rgb_frame = rgb_frame.data_mut(0);
+                let rgb_frame = rgb_frame.data(0);
 
                 unsafe {
-                    let mut img = Mat::new_rows_cols_with_data(
+                    let img = Mat::new_rows_cols_with_data(
                         decoder.height() as _,
                         decoder.width() as _,
                         CV_8UC3,
-                        rgb_frame.as_mut_ptr() as *mut std::os::raw::c_void,
+                        // Note: this data is not copied:
+                        rgb_frame.as_ptr() as *mut std::os::raw::c_void,
                         Mat_AUTO_STEP,
                     )
                     .unwrap();
 
-                    let frame = Frame::new(img, Some(SystemTime::now().into()));
-
-                    if senders.len() == 1 {
-                        senders[0].send(frame).unwrap();
-                    } else {
-                        for s in &senders {
-                            let f = frame.clone();
-                            s.send(f).unwrap();
-                        }
+                    let frame =
+                        Frame::new(img.clone(), Colorspace::BGR, Some(SystemTime::now().into()));
+                    let a = Arc::new(frame);
+                    for s in &senders {
+                        s.send(Arc::clone(&a)).unwrap();
+                    }
+                    if let Some(tx) = &win_tx {
+                        tx.send(Arc::clone(&a)).unwrap();
                     }
                 }
             }
