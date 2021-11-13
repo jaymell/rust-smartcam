@@ -6,15 +6,15 @@ use opencv::{
     prelude::*, types::VectorOfMat,
 };
 use std::error::Error;
-use std::sync::{mpsc::Receiver, Arc};
+use std::sync::{mpsc::Receiver, mpsc::Sender, Arc};
 
 use crate::config::load_config;
 use crate::frame::{Frame, VideoFrame};
-use crate::video_writer::VideoWriter;
+use crate::video;
 
 pub struct MotionDetector {
     receiver: Receiver<Arc<Frame>>,
-    video_writer: Option<VideoWriter>,
+    video_tx: Option<Sender<VideoFrame>>,
     in_motion: bool,
     in_motion_window: bool,
     last_motion_time: DateTime<Utc>,
@@ -64,7 +64,7 @@ impl MotionDetector {
         let cfg = load_config(None);
         Self {
             receiver,
-            video_writer: None,
+            video_tx: None,
             in_motion: false,
             in_motion_window: false,
             last_motion_time: DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(61, 0), Utc),
@@ -73,7 +73,6 @@ impl MotionDetector {
     }
 
     pub fn start(&mut self) -> () {
-
         debug!("Starting motion detector");
 
         // Dump first images:
@@ -109,7 +108,7 @@ impl MotionDetector {
             }
             let contours = contours.unwrap();
 
-            let mut contour_frame = (*org_frame).clone();
+            let mut contour_frame = Arc::new((*org_frame).clone());
 
             let mut frame_sent = false;
             for c in contours.iter() {
@@ -125,7 +124,7 @@ impl MotionDetector {
                 if area as i32 >= self.min_threshold_size {
                     // Motion detected:
                     match imgproc::draw_contours(
-                        contour_frame.img_mut(),
+                        Arc::get_mut(&mut contour_frame).unwrap().img_mut(),
                         &contours,
                         -1,
                         Scalar::new(0.0, 0.0, 255.0, 0.0),
@@ -142,7 +141,7 @@ impl MotionDetector {
                     // send first frame:
                     if !self.in_motion {
                         self.send_frame(VideoFrame {
-                            frame: contour_frame.clone(),
+                            frame: Arc::clone(&contour_frame),
                             is_start: true,
                             is_end: false,
                         });
@@ -162,14 +161,14 @@ impl MotionDetector {
                     debug!("Motion window closing.");
                     self.in_motion_window = false;
                     self.send_frame(VideoFrame {
-                        frame: contour_frame.clone(),
+                        frame: Arc::clone(&contour_frame),
                         is_start: false,
                         is_end: true,
                     });
-                    self.video_writer = None;
+                    self.video_tx = None;
                 } else {
                     self.send_frame(VideoFrame {
-                        frame: contour_frame.clone(),
+                        frame: Arc::clone(&contour_frame),
                         is_start: false,
                         is_end: false,
                     });
@@ -182,14 +181,15 @@ impl MotionDetector {
     }
 
     fn send_frame(&mut self, frame: VideoFrame) -> () {
-        match &self.video_writer {
+        match &self.video_tx {
             Some(v) => {
-                v.send_frame(frame);
+                v.send(frame).unwrap();
             }
             None => {
-                let v = VideoWriter::new();
-                v.send_frame(frame);
-                self.video_writer = Some(v);
+                let f = &frame.frame;
+                let v = video::start_video_writer(f.time(), f.width(), f.height());
+                v.send(frame).unwrap();
+                self.video_tx = Some(v);
             }
         };
     }

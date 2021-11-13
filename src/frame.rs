@@ -11,6 +11,7 @@ use std::fmt;
 use std::iter::Flatten;
 use std::ops::Drop;
 use std::str::FromStr;
+use std::sync::Arc;
 use std::time::SystemTime;
 use strum::ParseError;
 use strum_macros::{Display, EnumString};
@@ -49,7 +50,10 @@ impl Colorspace {
             },
             Self::YUYV => match target {
                 Colorspace::YUYV => buf,
-                Colorspace::BGR => yuyv_to_bgr(&buf),
+                Colorspace::BGR => {
+                    debug!("buf len is {}", buf.len());
+                    yuyv_to_bgr(&buf)
+                },
                 Colorspace::RGB => panic!("{} to {} conversion not supported", self, target),
             },
         }
@@ -119,7 +123,7 @@ pub struct Frame {
 }
 
 pub struct VideoFrame {
-    pub frame: Frame,
+    pub frame: Arc<Frame>,
     pub is_start: bool,
     pub is_end: bool,
 }

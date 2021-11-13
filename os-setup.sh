@@ -32,7 +32,8 @@ sudo apt-get install \
   libjpeg-dev \
   libtiff-dev \
   libwebp-dev \
-  libavdevice-dev
+  libavdevice-dev \
+  libclang-dev
 
 
 
@@ -47,6 +48,11 @@ sudo qemu-system-aarch64 -m 1024 -cpu cortex-a57 -M virt -nographic -pflash flas
   -drive if=none,file=ubuntu-21.04-preinstalled-server-arm64+raspi.img.xz,id=hd0 \
   -device virtio-blk-device,drive=hd0 -netdev type=tap,id=net0 \
   -device virtio-net-device,netdev=net0,mac=E0:94:29:1F:DE:83
+
+
+
+#########################################################################################3
+
 
 OPENCV_VERSION=4.5.2
 BUILD_FLAGS="

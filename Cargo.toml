@@ -5,6 +5,7 @@ authors = ["jaymell"]
 edition = "2018"
 
 [dependencies]
+bytes = "1"
 chrono = "0.4"
 futures = "0.3.17"
 libc     = "0.2"
@@ -13,6 +14,12 @@ tokio = { version = "1", features = ["full"] }
 gtk = "0.14.1"
 glib = "0.14.1"
 gdk-pixbuf = "0.14.0"
+webrtc = "0.3.2"
+rocket = { version = "0.5.0-rc.1", features = ["json"] }
+serde_json = "1.0"
+base64 = "0.13.0"
+anyhow = "1.0"
+ctrlc = "3.2.1"
 
 aws-types = { git = "https://github.com/awslabs/aws-sdk-rust", tag = "v0.0.17-alpha", package = "aws-types" }
 aws-config = { git = "https://github.com/awslabs/aws-sdk-rust", tag = "v0.0.17-alpha", package = "aws-config" }
