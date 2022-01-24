@@ -3,3 +3,6 @@ notes
 settings.toml
 Rocket.toml
 .vscode
+
+*.svg
+launch.sh

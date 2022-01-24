@@ -87,7 +87,7 @@ async fn get_stream(
     // Prepare the configuration
     let config = RTCConfiguration {
         ice_servers: vec![RTCIceServer {
-            // FIXME -- config:
+            // FIXME -- configure:
             urls: vec!["stun:stun.l.google.com:19302".to_owned()],
             ..Default::default()
         }],

@@ -53,7 +53,7 @@ impl Colorspace {
                 Colorspace::BGR => {
                     debug!("buf len is {}", buf.len());
                     yuyv_to_bgr(&buf)
-                },
+                }
                 Colorspace::RGB => panic!("{} to {} conversion not supported", self, target),
             },
         }

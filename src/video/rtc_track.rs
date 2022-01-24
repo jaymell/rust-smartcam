@@ -1,6 +1,6 @@
+use log::info;
 use std::any::Any;
 use std::sync::{Arc, Mutex};
-use log::{info};
 use webrtc::error::Result;
 use webrtc::media::Sample;
 use webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecCapability;
@@ -36,7 +36,11 @@ impl TrackLocal for RTCTrack {
         let b = self.track.bind(t).await;
         let mut num_conns = self.num_conns.lock().unwrap();
         *num_conns += 1;
-        info!("Binding connection for stream {} -- total connections {}", self.stream_id(), *num_conns);
+        debug!(
+            "Binding connection for stream {} -- total connections {}",
+            self.stream_id(),
+            *num_conns
+        );
         b
     }
 
@@ -44,7 +48,11 @@ impl TrackLocal for RTCTrack {
         let u = self.track.unbind(t).await;
         let mut num_conns = self.num_conns.lock().unwrap();
         *num_conns -= 1;
-        info!("Removing connection for stream {} -- total connections {}", self.stream_id(), *num_conns);
+        debug!(
+            "Removing connection for stream {} -- total connections {}",
+            self.stream_id(),
+            *num_conns
+        );
         u
     }
 

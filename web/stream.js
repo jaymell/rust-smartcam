@@ -23,6 +23,7 @@ function initiatePeerConnection(streamName) {
   let pc = new RTCPeerConnection({
     iceServers: [
       {
+        // FIXME -- configuration:
         urls: 'stun:stun.l.google.com:19302'
       }
     ]

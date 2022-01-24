@@ -322,13 +322,13 @@ impl VideoFileWriter {
         let ost_index = 0;
         let mut encoded = Packet::empty();
         while self.video_proc.encoder.receive_packet(&mut encoded).is_ok() {
-            debug!("Writing packets...");
+            trace!("Writing packets...");
             encoded.set_stream(ost_index);
             encoded
                 .write_interleaved(&mut self.video_proc.octx)
                 .unwrap();
         }
-        debug!("Finished writing packets...");
+        trace!("Finished writing packets...");
     }
 }
 
