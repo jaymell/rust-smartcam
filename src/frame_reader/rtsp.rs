@@ -41,7 +41,6 @@ impl DecoderThread {
         senders: Vec<Sender<Arc<Frame>>>,
         web_tx: Option<AsyncSender<Arc<Frame>>>,
     ) -> Self {
-
         let mut scaler = Context::get(
             decoder.format(),
             decoder.width(),
@@ -50,7 +49,8 @@ impl DecoderThread {
             decoder.width(),
             decoder.height(),
             Flags::BILINEAR,
-        ).unwrap();
+        )
+        .unwrap();
 
         Self {
             packet_rx,
@@ -62,7 +62,6 @@ impl DecoderThread {
     }
 
     pub fn start(&mut self) {
-
         debug!(
             "Original dimensions are {} x {}",
             self.decoder.width(),
@@ -93,7 +92,6 @@ impl DecoderThread {
         let mut decoded = Video::empty();
 
         while self.decoder.receive_frame(&mut decoded).is_ok() {
-
             let mut rgb_frame = Video::empty();
 
             self.scaler.run(&decoded, &mut rgb_frame)?;

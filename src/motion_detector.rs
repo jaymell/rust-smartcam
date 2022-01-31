@@ -9,6 +9,7 @@ use std::error::Error;
 use std::sync::{mpsc::Receiver, mpsc::Sender, Arc};
 
 use crate::config::load_config;
+use crate::config::CameraConfig;
 use crate::frame::{Frame, VideoFrame};
 use crate::video;
 
@@ -19,6 +20,7 @@ pub struct MotionDetector {
     in_motion_window: bool,
     last_motion_time: DateTime<Utc>,
     min_threshold_size: i32,
+    camera: Arc<CameraConfig>,
 }
 
 fn absdiff(img1: &Mat, img2: &Mat) -> Result<Mat, Box<dyn Error>> {
@@ -60,7 +62,7 @@ fn find_contours(img: &Mat) -> Result<VectorOfMat, Box<dyn Error>> {
 }
 
 impl MotionDetector {
-    pub fn new(receiver: Receiver<Arc<Frame>>) -> Self {
+    pub fn new(camera: Arc<CameraConfig>, receiver: Receiver<Arc<Frame>>) -> Self {
         let cfg = load_config(None);
         Self {
             receiver,
@@ -69,6 +71,7 @@ impl MotionDetector {
             in_motion_window: false,
             last_motion_time: DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(61, 0), Utc),
             min_threshold_size: cfg.motion.min_threshold_size,
+            camera,
         }
     }
 
@@ -187,7 +190,12 @@ impl MotionDetector {
             }
             None => {
                 let f = &frame.frame;
-                let v = video::start_video_writer(f.time(), f.width(), f.height());
+                let v = video::start_video_writer(
+                    Arc::clone(&self.camera),
+                    f.time(),
+                    f.width(),
+                    f.height(),
+                );
                 v.send(frame).unwrap();
                 self.video_tx = Some(v);
             }

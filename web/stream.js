@@ -28,7 +28,8 @@ function initiatePeerConnection(streamName) {
       }
     ]
   });
-  pc.ontrack = function (event) {
+
+  pc.ontrack = event => {
     var el = document.createElement(event.track.kind)
     el.srcObject = event.streams[0]
     el.autoplay = true
@@ -36,13 +37,27 @@ function initiatePeerConnection(streamName) {
 
     buttonDiv.appendChild(el);
   };
+
   // Offer to receive 1 audio, and 1 video track
   pc.addTransceiver('video', {'direction': 'sendrecv'})
   pc.addTransceiver('audio', {'direction': 'sendrecv'})
-  pc.createOffer().then(d => pc.setLocalDescription(d)).catch(console.log);
-  pc.oniceconnectionstatechange = e => console.log(pc.iceConnectionState);
-  pc.onicecandidate = event => {
-    if (event.candidate === null) {
+
+  pc.createOffer()
+    .then(d => pc.setLocalDescription(d))
+    .catch(console.log);
+
+  pc.oniceconnectionstatechange = e => {
+    console.log("connection state change: ", JSON.stringify(e));
+    const state = pc.iceConnectionState;
+    if (state == 'disconnected' || state == 'failed') {
+      alert("Disconnected");
+      location.reload();
+    }
+  };
+
+
+  pc.onicecandidate = e => {
+    if (e.candidate === null) {
       console.log('local session description: ', JSON.stringify(pc.localDescription));
     }
   };
@@ -52,7 +67,6 @@ function initiatePeerConnection(streamName) {
   b.innerHTML = streamName;
   b.onclick = () => window.startSession(streamName, pc);
   buttonDiv.appendChild(b);
-
 }
 
 

@@ -4,6 +4,7 @@ mod v4l;
 
 pub use self::rtsp::RTSPFrameReader;
 pub use self::v4l::V4LFrameReader;
+use crate::config::CameraConfig;
 use crate::frame::Frame;
 use anyhow::Result;
 use std::sync::{mpsc::Sender, Arc};
@@ -19,19 +20,18 @@ pub trait FrameReader {
 }
 
 pub fn start_frame_reader(
-    cam_type: &str,
+    camera: Arc<CameraConfig>,
     senders: Vec<Sender<Arc<Frame>>>,
     web_tx: Option<AsyncSender<Arc<Frame>>>,
-    source: Option<&str>,
 ) -> Result<()> {
-    match cam_type {
+    match camera.camera_type.as_str() {
         "rtsp" => {
             let frame_reader = RTSPFrameReader {};
-            frame_reader.read_frames(senders, web_tx, source);
+            frame_reader.read_frames(senders, web_tx, camera.source.as_deref());
         }
         "v4l" => {
             let frame_reader = V4LFrameReader {};
-            frame_reader.read_frames(senders, web_tx, source);
+            frame_reader.read_frames(senders, web_tx, camera.source.as_deref());
         }
         _ => {
             panic!("Unknown camera type");

@@ -6,6 +6,7 @@ mod motion_detector;
 mod upload;
 mod video;
 mod web;
+mod file_source;
 
 use self::motion_detector::MotionDetector;
 use crate::frame::Frame;
@@ -14,10 +15,10 @@ use std::sync::{mpsc::channel, Arc};
 use std::thread;
 use std::thread::JoinHandle;
 use tokio::sync::mpsc::{channel as async_channel, Receiver as AsyncReceiver};
+pub(crate) use config::FileSourceType;
 
 #[macro_use]
 extern crate rocket;
-
 fn main() -> () {
     logger::init().unwrap();
 
@@ -66,6 +67,7 @@ fn launch(
     cameras
         .into_iter()
         .for_each(|camera: config::CameraConfig| {
+            let camera = Arc::new(camera);
             let (motion_tx, motion_rx) = channel::<Arc<Frame>>();
             let (web_tx, web_rx) = if display_enabled {
                 let (t, r) = async_channel::<Arc<Frame>>(1000);
@@ -76,17 +78,14 @@ fn launch(
 
             let tx_vec = vec![motion_tx];
 
+            let cam = Arc::clone(&camera);
             let frame_reader_thread = thread::spawn(move || -> () {
-                frame_reader::start_frame_reader(
-                    camera.camera_type.as_str(),
-                    tx_vec,
-                    web_tx,
-                    camera.source.as_deref(),
-                );
+                frame_reader::start_frame_reader(cam, tx_vec, web_tx);
             });
 
+            let cam = Arc::clone(&camera);
             let motion_detector_thread = thread::spawn(move || -> () {
-                let mut md = MotionDetector::new(motion_rx);
+                let mut md = MotionDetector::new(cam, motion_rx);
                 md.start();
             });
 

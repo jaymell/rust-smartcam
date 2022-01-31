@@ -1,6 +1,7 @@
 pub mod rtc_track;
 
 use crate::config;
+use crate::config::CameraConfig;
 use crate::frame::{Frame, VideoFrame};
 use crate::upload;
 use bytes::Bytes;
@@ -38,17 +39,20 @@ use tokio::sync::Mutex;
 use webrtc::api::media_engine::MIME_TYPE_H264;
 use webrtc::media::Sample;
 use webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecCapability;
+use crate::FileSourceType;
 
 pub fn start_video_writer(
+    camera: Arc<CameraConfig>,
     start_time: DateTime<Utc>,
     width: u32,
     height: u32,
 ) -> Sender<VideoFrame> {
     let (video_tx, video_rx) = mpsc::channel::<VideoFrame>();
 
+    let label = camera.label.clone();
     thread::spawn(move || -> () {
         let app_config = config::load_config(None);
-        let mut video_frame_proc = VideoFileWriter::new(start_time, width, height, None);
+        let mut video_frame_proc = VideoFileWriter::new(label, start_time, width, height, None);
         match video_frame_proc.receive_file(video_rx) {
             Ok(p) => {
                 if let Some(b) = app_config.cloud.enabled {
@@ -269,12 +273,27 @@ struct VideoFileWriter {
     start_time: DateTime<Utc>,
     video_proc: VideoProc,
     path: PathBuf,
+    temp_path: String
 }
 
 impl VideoFileWriter {
     // FIXME -- return result:
-    pub fn new(start_time: DateTime<Utc>, width: u32, height: u32, fps: Option<i16>) -> Self {
-        let f = format!("/tmp/{}.mkv", start_time.format("%+"));
+    pub fn new(
+        label: String,
+        start_time: DateTime<Utc>,
+        width: u32,
+        height: u32,
+        fps: Option<i16>,
+    ) -> Self {
+
+        let temp_path = String::from("/tmp");
+        let config = config::load_config(None);
+        let f_name = format!("{}-{}.mkv", label, start_time.format("%+"));
+        let f = match config.storage.storage_type {
+            FileSourceType::Local => format!("{}/{}", config.storage.path, f_name),
+            _ => format!("{}/{}", temp_path, f_name)
+        };
+
         let p = Path::new(&f).to_path_buf();
         let fps = fps.unwrap_or(1000);
         let mut octx = format::output(&p).unwrap();
@@ -287,6 +306,7 @@ impl VideoFileWriter {
             start_time: start_time,
             video_proc: VideoProc::new(fps, octx, encoder),
             path: p,
+            temp_path: temp_path
         }
     }
 
@@ -297,6 +317,10 @@ impl VideoFileWriter {
     fn close_file(&mut self) {
         self.video_proc.encoder.send_eof().unwrap();
         self.video_proc.octx.write_trailer().unwrap();
+    }
+
+    fn temp_path(&self) -> &str {
+        &self.temp_path
     }
 
     pub fn receive_file(
