@@ -54,7 +54,7 @@ pub struct StorageConfig {
     pub path: String
 }
 
-pub static GLOBAL_DATA: Lazy<Arc<Config>> = Lazy::new( || {
+static GLOBAL_DATA: Lazy<Arc<Config>> = Lazy::new( || {
     let mut config_toml = String::new();
 
     // let path = match path {

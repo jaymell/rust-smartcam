@@ -2,6 +2,7 @@ use crate::config;
 use crate::frame::{Frame, VideoFrame};
 use crate::upload;
 use crate::video::{init_encoder, rtc_track::RTCTrack, VideoRTCStream};
+use crate::file_source;
 
 use chrono;
 use chrono::{DateTime, Duration, Utc};
@@ -54,7 +55,14 @@ use webrtc::track::track_local::{TrackLocal, TrackLocalWriter};
 use webrtc::track::track_remote::TrackRemote;
 
 
-
+#[get("/videos/<label>")]
+pub(crate) async fn get_videos(
+    label: String,
+    fs: &State<Arc<dyn file_source::FileSource + Send + Sync >>,
+) -> Json<Vec<file_source::VideoFile>> {
+    println!("IM HERE!");
+    Json(fs.list_files_by_label(&label).await.unwrap())
+}
 
 #[get("/streams")]
 pub(crate) async fn get_streams_list(

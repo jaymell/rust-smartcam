@@ -1,5 +1,6 @@
 use crate::config;
 use crate::frame::{Frame, VideoFrame};
+use crate::file_source;
 use crate::upload;
 use crate::video::{init_encoder, rtc_track::RTCTrack, VideoRTCStream};
 
@@ -22,15 +23,17 @@ use std::{fs, mem, ptr};
 use tokio::sync::mpsc::{channel as async_channel, Receiver as AsyncReceiver};
 use tokio::task::JoinHandle;
 
+
 pub async fn start(
     receivers: Vec<AsyncReceiver<Arc<Frame>>>,
     cameras: Vec<config::CameraConfig>,
 ) -> () {
     let (streams, threads) = start_async(receivers, cameras).await;
     rocket::build()
-        .mount("/api", routes![api::get_stream, api::get_streams_list])
+        .mount("/api", routes![api::get_stream, api::get_streams_list, api::get_videos])
         .mount("/", FileServer::from("web"))
         .manage(streams)
+        .manage(file_source::load())
         .launch()
         .await;
     // for t in threads {
