@@ -1,15 +1,16 @@
 use crate::config;
+use anyhow::Result;
+use async_trait::async_trait;
+use chrono::DateTime;
+use once_cell::sync::Lazy;
+use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use chrono::{DateTime};
-use anyhow::Result;
-use serde::Serialize;
 use tokio::fs;
-use async_trait::async_trait;
-use once_cell::sync::Lazy;
+use tokio::fs::ReadDir;
 
-
-static GLOBAL_DATA: Lazy<Arc<dyn FileSource + Send + Sync>> = Lazy::new(|| Arc::new(LocalFileSource::new()) );
+static GLOBAL_DATA: Lazy<Arc<dyn FileSource + Send + Sync>> =
+    Lazy::new(|| Arc::new(LocalFileSource::new()));
 
 pub fn load() -> Arc<dyn FileSource + Send + Sync> {
     Arc::clone(&GLOBAL_DATA)
@@ -20,11 +21,10 @@ pub struct VideoFile {
     // timestamp: DateTime<Utc>,
     // label: String,
     // link: String,
-    pub file_name: String
+    pub file_name: String,
     // length?
     // resolution?
 }
-
 
 #[async_trait]
 pub trait FileSource {
@@ -39,10 +39,8 @@ pub trait FileSource {
     // ) -> Vec<VideoFile>;
 }
 
-
-struct LocalFileSource  {
-    path: PathBuf
-
+struct LocalFileSource {
+    path: PathBuf,
 }
 
 impl LocalFileSource {
@@ -50,22 +48,25 @@ impl LocalFileSource {
         let config = config::load_config(None);
 
         Self {
-            path: Path::new(&config.storage.path).to_path_buf()
+            path: Path::new(&config.storage.path).to_path_buf(),
         }
     }
 }
-
 
 #[async_trait]
 impl FileSource for LocalFileSource {
     async fn list_files_by_label(&self, label: &str) -> Result<Vec<VideoFile>> {
         let mut v = Vec::new();
         let mut entries = fs::read_dir(&self.path).await?;
+
         while let Some(entry) = entries.next_entry().await? {
             println!("{:?}", entry.path());
-            v.push(VideoFile { file_name: entry.file_name().into_string().unwrap() });
+            if entry.file_name().to_string_lossy().contains(label) {
+                v.push(VideoFile {
+                    file_name: entry.file_name().into_string().unwrap(),
+                });
+            }
         }
         Ok(v)
     }
 }
-

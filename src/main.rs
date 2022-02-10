@@ -1,4 +1,5 @@
 mod config;
+mod file_source;
 mod frame;
 mod frame_reader;
 mod logger;
@@ -6,16 +7,15 @@ mod motion_detector;
 mod upload;
 mod video;
 mod web;
-mod file_source;
 
 use self::motion_detector::MotionDetector;
 use crate::frame::Frame;
+pub(crate) use config::FileSourceType;
 use std::process;
 use std::sync::{mpsc::channel, Arc};
 use std::thread;
 use std::thread::JoinHandle;
 use tokio::sync::mpsc::{channel as async_channel, Receiver as AsyncReceiver};
-pub(crate) use config::FileSourceType;
 
 #[macro_use]
 extern crate rocket;

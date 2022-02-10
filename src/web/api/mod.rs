@@ -1,8 +1,8 @@
-use crate::config;
+use crate::config::Config;
+use crate::file_source;
 use crate::frame::{Frame, VideoFrame};
 use crate::upload;
 use crate::video::{init_encoder, rtc_track::RTCTrack, VideoRTCStream};
-use crate::file_source;
 
 use chrono;
 use chrono::{DateTime, Duration, Utc};
@@ -20,14 +20,15 @@ use futures::join;
 use libc::c_int;
 use log::{debug, error, info, trace, warn};
 use opencv::core::prelude::MatTrait;
-use rocket::fs::FileServer;
+use rocket::fs::{FileServer, NamedFile};
+use rocket::http::Status;
 use rocket::response::{content, status};
 use rocket::serde::json::Json;
 use rocket::State;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::ffi::CString;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc};
 use std::thread;
@@ -39,7 +40,6 @@ use tokio::{runtime::Runtime, task};
 use webrtc::api::interceptor_registry::register_default_interceptors;
 use webrtc::api::media_engine::MediaEngine;
 use webrtc::api::APIBuilder;
-use webrtc::error::Result;
 use webrtc::ice_transport::ice_connection_state::RTCIceConnectionState;
 use webrtc::ice_transport::ice_server::RTCIceServer;
 use webrtc::interceptor::registry::Registry;
@@ -54,14 +54,26 @@ use webrtc::track::track_local::track_local_static_rtp::TrackLocalStaticRTP;
 use webrtc::track::track_local::{TrackLocal, TrackLocalWriter};
 use webrtc::track::track_remote::TrackRemote;
 
+use webrtc::ice_transport::ice_candidate::RTCIceCandidate;
 
 #[get("/videos/<label>")]
 pub(crate) async fn get_videos(
     label: String,
-    fs: &State<Arc<dyn file_source::FileSource + Send + Sync >>,
+    fs: &State<Arc<dyn file_source::FileSource + Send + Sync>>,
 ) -> Json<Vec<file_source::VideoFile>> {
-    println!("IM HERE!");
     Json(fs.list_files_by_label(&label).await.unwrap())
+}
+
+#[get("/videos/<label>/<video>")]
+pub(crate) async fn get_video_by_name(
+    label: String,
+    video: PathBuf,
+    state: &State<HashMap<String, Arc<RTCTrack>>>,
+    config: &State<Arc<Config>>,
+) -> Option<NamedFile> {
+    NamedFile::open(Path::new(&config.storage.path).join(video))
+        .await
+        .ok()
 }
 
 #[get("/streams")]
@@ -76,11 +88,11 @@ pub(crate) async fn get_stream(
     label: String,
     offer: String,
     state: &State<HashMap<String, Arc<RTCTrack>>>,
-) -> Option<String> {
+) -> Result<String, Status> {
     let video_track = state.get(&label);
     if let None = video_track {
         // 404
-        return None;
+        return Err(Status::NotFound);
     }
     let video_track = video_track.unwrap();
 
@@ -143,6 +155,7 @@ pub(crate) async fn get_stream(
 
     let offer = base64::decode(&offer).unwrap();
     let offer = String::from_utf8(offer).unwrap();
+    debug!("Received offer {}", offer);
     let offer = serde_json::from_str::<RTCSessionDescription>(&offer.as_str()).unwrap();
 
     // Set the remote SessionDescription
@@ -158,26 +171,22 @@ pub(crate) async fn get_stream(
     peer_connection.set_local_description(answer).await.unwrap();
 
     // Block until ICE Gathering is complete, disabling trickle ICE
-    // we do this because we only can exchange one signaling message
-    // in a production application you should exchange ICE Candidates via OnICECandidate
     let _ = gather_complete.recv().await;
 
-    let resp = if let Some(local_desc) = peer_connection.local_description().await {
-        let json_str = serde_json::to_string(&local_desc).unwrap();
-        base64::encode(&json_str)
-    } else {
-        String::from("Error")
-    };
-
-    let mut rtp_sender = Some(rtp_sender);
-    tokio::spawn(async move {
-        discon_rx.recv().await;
-        peer_connection
-            .remove_track(&mut rtp_sender.take().unwrap())
-            .await
-            .unwrap();
-        peer_connection.close().await.unwrap();
-    });
-
-    Some(resp)
+    match peer_connection.local_description().await {
+        Some(local_desc) => {
+            let json_str = serde_json::to_string(&local_desc).unwrap();
+            let mut rtp_sender = Some(rtp_sender);
+            tokio::spawn(async move {
+                discon_rx.recv().await;
+                peer_connection
+                    .remove_track(&mut rtp_sender.take().unwrap())
+                    .await
+                    .unwrap();
+                peer_connection.close().await.unwrap();
+            });
+            Ok(base64::encode(&json_str))
+        }
+        None => Err(Status::InternalServerError),
+    }
 }

@@ -1,18 +1,78 @@
+use ffmpeg::util::log::level::Level as FfLevel;
+use ffmpeg_next as ffmpeg;
+use log::{debug, Level, LevelFilter};
+use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::fs::File;
 use std::io::Read;
 use std::sync::Arc;
 use toml::Value;
-use log::debug;
-
-use once_cell::sync::Lazy;
-
 
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum FileSourceType {
     Local,
-    S3
+    S3,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum LogLevel {
+    Error,
+    Warn,
+    Info,
+    Debug,
+    Trace,
+}
+
+impl LogLevel {
+    pub fn level(&self) -> Level {
+        match *self {
+            LogLevel::Error => Level::Error,
+            LogLevel::Warn => Level::Warn,
+            LogLevel::Info => Level::Info,
+            LogLevel::Debug => Level::Debug,
+            LogLevel::Trace => Level::Trace,
+        }
+    }
+
+    pub fn ffmpeg(&self) -> FfLevel {
+        match *self {
+            LogLevel::Error => FfLevel::Error,
+            LogLevel::Warn => FfLevel::Error,
+            LogLevel::Info => FfLevel::Info,
+            LogLevel::Debug => FfLevel::Debug,
+            LogLevel::Trace => FfLevel::Trace,
+        }
+    }
+
+    pub fn level_filter(&self) -> LevelFilter {
+        match *self {
+            LogLevel::Error => LevelFilter::Error,
+            LogLevel::Warn => LevelFilter::Warn,
+            LogLevel::Info => LevelFilter::Info,
+            LogLevel::Debug => LevelFilter::Debug,
+            LogLevel::Trace => LevelFilter::Trace,
+        }
+    }
+}
+
+#[derive(Deserialize, Clone, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum VideoFileType {
+    Matroska,
+    Mp4,
+    WebM,
+}
+
+impl VideoFileType {
+    pub fn extension(&self) -> &str {
+        match *self {
+            VideoFileType::Matroska => &"mkv",
+            VideoFileType::Mp4 => &"mp4",
+            VideoFileType::WebM => &"webm",
+        }
+    }
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -21,7 +81,8 @@ pub struct Config {
     pub cloud: CloudConfig,
     pub motion: MotionConfig,
     pub display: DisplayConfig,
-    pub storage: StorageConfig
+    pub storage: StorageConfig,
+    pub log_level: LogLevel,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -51,10 +112,11 @@ pub struct DisplayConfig {
 #[derive(Deserialize, Clone, Debug)]
 pub struct StorageConfig {
     pub storage_type: FileSourceType,
-    pub path: String
+    pub path: String,
+    pub video_file_type: VideoFileType,
 }
 
-static GLOBAL_DATA: Lazy<Arc<Config>> = Lazy::new( || {
+static GLOBAL_DATA: Lazy<Arc<Config>> = Lazy::new(|| {
     let mut config_toml = String::new();
 
     // let path = match path {
@@ -78,7 +140,6 @@ static GLOBAL_DATA: Lazy<Arc<Config>> = Lazy::new( || {
     debug!("Config: {:?}", cfg);
     Arc::new(cfg)
 });
-
 
 pub fn load_config(path: Option<String>) -> Arc<Config> {
     Arc::clone(&GLOBAL_DATA)

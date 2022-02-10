@@ -1,12 +1,16 @@
+use crate::config;
+use crate::config::Config;
 use chrono::{DateTime, Utc};
 use log::{Level, LevelFilter, Metadata, Record, SetLoggerError};
+use once_cell::sync::Lazy;
+use std::sync::Arc;
 use std::time::SystemTime;
 
-struct SimpleLogger;
+struct SimpleLogger(Arc<Config>);
 
 impl log::Log for SimpleLogger {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.level() <= Level::Debug
+        metadata.level() <= self.0.log_level.level()
     }
 
     fn log(&self, record: &Record) {
@@ -24,8 +28,14 @@ impl log::Log for SimpleLogger {
     fn flush(&self) {}
 }
 
-static LOGGER: SimpleLogger = SimpleLogger;
+static LOGGER: Lazy<Arc<SimpleLogger>> = Lazy::new(|| {
+    let config = config::load_config(None);
+    Arc::new(SimpleLogger(Arc::clone(&config)))
+});
+
+// static LOGGER: SimpleLogger = SimpleLogger;
 
 pub fn init() -> Result<(), SetLoggerError> {
-    log::set_logger(&LOGGER).map(|()| log::set_max_level(LevelFilter::Trace))
+    let config = config::load_config(None);
+    log::set_logger(LOGGER.as_ref()).map(|_| log::set_max_level(config.log_level.level_filter()))
 }

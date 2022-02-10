@@ -3,7 +3,14 @@
 window.startSession = async (s, pc) => {
 
   let sd = btoa(JSON.stringify(pc.localDescription));
-  let remote = await fetch(`/api/streams/${s}`, { method: 'POST', body: sd, headers: { 'Accept': 'text/plain' } });
+  console.log("Posting ", sd);
+  let remote = await fetch(`/api/streams/${s}`,
+    {
+      method: 'POST',
+      body: sd,
+      headers: { 'Content-Type': 'text/plain' }
+    }
+  );
   let b = await remote.text();
   console.log(b);
   try {
@@ -20,14 +27,18 @@ function initiatePeerConnection(streamName) {
   const buttonDiv = document.getElementById("buttonHolder");
   const buttonId = `button-${streamName}`;
 
+  // let pc = new RTCPeerConnection();
+
   let pc = new RTCPeerConnection({
     iceServers: [
       {
         // FIXME -- configuration:
         urls: 'stun:stun.l.google.com:19302'
+        // urls: 'stun:stun.voipinfocenter.com:3478'
       }
     ]
   });
+
 
   pc.ontrack = event => {
     var el = document.createElement(event.track.kind)
@@ -43,8 +54,12 @@ function initiatePeerConnection(streamName) {
   pc.addTransceiver('audio', {'direction': 'sendrecv'})
 
   pc.createOffer()
-    .then(d => pc.setLocalDescription(d))
-    .catch(console.log);
+    .then(d => {
+      console.log("Setting local description: ", d);
+      pc.setLocalDescription(d);
+    })
+    .catch(console.error);
+
 
   pc.oniceconnectionstatechange = e => {
     console.log("connection state change: ", JSON.stringify(e));
@@ -58,8 +73,18 @@ function initiatePeerConnection(streamName) {
 
   pc.onicecandidate = e => {
     if (e.candidate === null) {
+      console.log("ICE gathering complete");
       console.log('local session description: ', JSON.stringify(pc.localDescription));
+      return;
     }
+    console.log("onicecandidate: ", e.candidate);
+    // let cand = btoa(JSON.stringify(e.candidate));
+    // let remote = fetch(`/api/streams/candidate`, {
+    //   method: 'POST',
+    //   body: cand,
+    //   headers: { 'Content-Type': 'text/plain' }
+    // });
+    // let b = await remote.text();
   };
 
   const b = document.createElement('button');
@@ -70,11 +95,39 @@ function initiatePeerConnection(streamName) {
 }
 
 
-document.addEventListener('DOMContentLoaded', function(event) {
+function createVideoDiv(label, video) {
+  const ctr = document.getElementById("remoteVideos");
+  const link = document.createElement("video");
+  link.width = 320;
+  link.height = 240;
+  link.controls = true;
+  // link.src = `/videos/${label}/${video}`;
 
-  fetch('/api/streams')
-    .then(async(it) => (await it.json()) )
-    .then(it => it.forEach(it => initiatePeerConnection(it)) )
-    .catch(e => { console.error(e); });
+  const source = document.createElement("source");
+  source.src = `/api/videos/${label}/${video}`;
+  source.type = "video/mp4";
+
+  const div = document.createElement("div");
+  div.appendChild(link);
+  link.appendChild(source);
+  ctr.appendChild(div);
+}
+
+document.addEventListener('DOMContentLoaded', async function(event) {
+
+  const streams = await (await fetch('/api/streams')).json();
+
+  console.log("streams: ", streams);
+
+  streams.forEach(it => initiatePeerConnection(it));
+
+  const fetchArray = await Promise.all(streams.map(it => fetch(`/api/videos/${it}`)));
+
+  console.log("fetchArray: ", fetchArray);
+
+  const vidsArray = await Promise.all(fetchArray.map(async(it) => await it.json()));
+
+  vidsArray.forEach(vidArray =>
+    vidArray.forEach(vid => createVideoDiv("Frontdoor", vid.file_name)));
 
 });
