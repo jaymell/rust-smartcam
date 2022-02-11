@@ -60,36 +60,35 @@ impl FrameReader for V4LFrameReader {
                 .unwrap()
                 .convert_buf(buf.to_vec(), Colorspace::BGR);
 
-            unsafe {
-                let img = Mat::new_rows_cols_with_data(
+            let img = unsafe {
+                Mat::new_rows_cols_with_data(
                     format.height as _,
                     format.width as _,
                     CV_8UC3,
                     bgr_buf.as_mut_ptr() as *mut std::os::raw::c_void,
                     Mat_AUTO_STEP,
                 )
-                .unwrap();
-                let frame =
-                    Frame::new(img.clone(), Colorspace::BGR, Some(SystemTime::now().into()));
-                if frame.width() == 0 {
-                    continue;
-                }
-
-                let a = Arc::new(frame);
-                for s in &senders {
-                    s.send(Arc::clone(&a)).unwrap();
-                }
-                if let Some(s) = &web_tx {
-                    s.blocking_send(Arc::clone(&a)).unwrap();
-                }
+                .unwrap()
+            };
+            let frame = Frame::new(img.clone(), Colorspace::BGR, Some(SystemTime::now().into()));
+            if frame.width() == 0 {
+                continue;
             }
 
-            frame_count += 1;
-            trace!(
-                "FPS: {}",
-                frame_count as f64 / start.elapsed().as_secs_f64()
-            );
+            let a = Arc::new(frame);
+            for s in &senders {
+                s.send(Arc::clone(&a)).unwrap();
+            }
+            if let Some(s) = &web_tx {
+                s.blocking_send(Arc::clone(&a)).unwrap();
+            }
         }
+
+        frame_count += 1;
+        trace!(
+            "FPS: {}",
+            frame_count as f64 / start.elapsed().as_secs_f64()
+        );
 
         Ok(())
     }

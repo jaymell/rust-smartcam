@@ -97,19 +97,19 @@ function initiatePeerConnection(streamName) {
 
 function createVideoDiv(label, video) {
   const ctr = document.getElementById("remoteVideos");
-  const link = document.createElement("video");
-  link.width = 320;
-  link.height = 240;
-  link.controls = true;
-  // link.src = `/videos/${label}/${video}`;
+  const videoTag = document.createElement("video");
+  videoTag.width = 320;
+  videoTag.height = 240;
+  videoTag.controls = true;
+  videoTag.preload = "metadata";
 
   const source = document.createElement("source");
   source.src = `/api/videos/${label}/${video}`;
   source.type = "video/mp4";
 
   const div = document.createElement("div");
-  div.appendChild(link);
-  link.appendChild(source);
+  div.appendChild(videoTag);
+  videoTag.appendChild(source);
   ctr.appendChild(div);
 }
 

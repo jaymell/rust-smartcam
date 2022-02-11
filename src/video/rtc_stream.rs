@@ -71,59 +71,57 @@ impl VideoRTCStream {
         fps: Option<i16>,
         mut rx: AsyncReceiver<Arc<Frame>>,
     ) {
-        unsafe {
-            let fps = fps.unwrap_or(1000);
-            // unsafe:
-            let mut octx = format::context::output::Output::wrap(avformat_alloc_context());
-            let encoder = init_encoder(width, height, &mut octx, fps, false);
+        let fps = fps.unwrap_or(1000);
+        // unsafe:
+        let mut octx = unsafe { format::context::output::Output::wrap(avformat_alloc_context()) };
+        let encoder = init_encoder(width, height, &mut octx, fps, false);
 
-            let mut video_proc = VideoProc::new(fps, octx, encoder);
+        let mut video_proc = VideoProc::new(fps, octx, encoder);
 
-            // It is important to use a time.Ticker instead of time.Sleep because
-            // * avoids accumulating skew, just calling time.Sleep didn't compensate for the time spent parsing the data
-            // * works around latency issues with Sleep
-            let mut ticker = tokio::time::interval(
-                Duration::milliseconds((fps as f64 / 1000 as f64) as _)
-                    .to_std()
-                    .unwrap(),
-            );
+        // It is important to use a time.Ticker instead of time.Sleep because
+        // * avoids accumulating skew, just calling time.Sleep didn't compensate for the time spent parsing the data
+        // * works around latency issues with Sleep
+        let mut ticker = tokio::time::interval(
+            Duration::milliseconds((fps as f64 / 1000 as f64) as _)
+                .to_std()
+                .unwrap(),
+        );
 
-            debug!("Receiving stream {}", self.camera.label);
-            while let Some(frame) = rx.recv().await {
-                let num_conns = *self.track.num_conns.lock().unwrap();
-                if num_conns == 0 {
-                    trace!("No connections -- continuing");
-                    continue;
-                } else {
-                    trace!("{} active connection", num_conns);
-                }
-
-                trace!("Writing frame to encoder");
-                let duration_ms = video_proc.process_frame(frame).unwrap_or(1);
-                let ost_index = 0;
-                let mut encoded = Packet::empty();
-                encoded.set_stream(ost_index);
-                while video_proc.encoder.receive_packet(&mut encoded).is_ok() {
-                    trace!("Getting bytes from encoder");
-                    if let Err(e) = &self
-                        .track
-                        .write_sample(&Sample {
-                            data: Bytes::copy_from_slice(
-                                encoded.data().expect("Failed to get encoded data"),
-                            ),
-                            duration: Duration::milliseconds(duration_ms).to_std().unwrap(),
-                            ..Default::default()
-                        })
-                        .await
-                    {
-                        error!("Failed to write to video_track: {}", e);
-                    };
-                    let _ = ticker.tick().await;
-                }
+        debug!("Receiving stream {}", self.camera.label);
+        while let Some(frame) = rx.recv().await {
+            let num_conns = *self.track.num_conns.lock().unwrap();
+            if num_conns == 0 {
+                trace!("No connections -- continuing");
+                continue;
+            } else {
+                trace!("{} active connection", num_conns);
             }
 
-            error!("Video stream loop terminated");
+            trace!("Writing frame to encoder");
+            let duration_ms = video_proc.process_frame(frame).unwrap_or(1);
+            let ost_index = 0;
+            let mut encoded = Packet::empty();
+            encoded.set_stream(ost_index);
+            while video_proc.encoder.receive_packet(&mut encoded).is_ok() {
+                trace!("Getting bytes from encoder");
+                if let Err(e) = &self
+                    .track
+                    .write_sample(&Sample {
+                        data: Bytes::copy_from_slice(
+                            encoded.data().expect("Failed to get encoded data"),
+                        ),
+                        duration: Duration::milliseconds(duration_ms).to_std().unwrap(),
+                        ..Default::default()
+                    })
+                    .await
+                {
+                    error!("Failed to write to video_track: {}", e);
+                };
+                let _ = ticker.tick().await;
+            }
         }
+
+        error!("Video stream loop terminated");
     }
 
     pub fn track(&self) -> Arc<RTCTrack> {

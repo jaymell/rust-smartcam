@@ -1,9 +1,15 @@
 use chrono::{DateTime, Duration, NaiveDateTime, Utc};
-use log::{debug, error, trace};
+use log::{debug, error, trace, warn};
 use opencv::{
-    core, core::no_array, core::Point, core::Scalar, core::BORDER_CONSTANT, highgui, imgproc,
-    imgproc::CHAIN_APPROX_SIMPLE, imgproc::LINE_AA, imgproc::RETR_TREE, imgproc::THRESH_BINARY,
-    prelude::*, types::VectorOfMat,
+    core,
+    core::no_array,
+    core::Point,
+    core::Scalar,
+    core::BORDER_CONSTANT,
+    highgui, imgproc,
+    imgproc::{bounding_rect, rectangle, CHAIN_APPROX_SIMPLE, LINE_AA, RETR_TREE, THRESH_BINARY},
+    prelude::*,
+    types::VectorOfMat,
 };
 use std::error::Error;
 use std::sync::{mpsc::Receiver, mpsc::Sender, Arc};
@@ -21,6 +27,8 @@ pub struct MotionDetector {
     last_motion_time: DateTime<Utc>,
     min_threshold_size: i32,
     camera: Arc<CameraConfig>,
+    draw_contours: bool,
+    draw_rectangles: bool,
 }
 
 fn absdiff(img1: &Mat, img2: &Mat) -> Result<Mat, Box<dyn Error>> {
@@ -72,6 +80,8 @@ impl MotionDetector {
             last_motion_time: DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(61, 0), Utc),
             min_threshold_size: cfg.motion.min_threshold_size,
             camera,
+            draw_contours: cfg.motion.draw_contours.unwrap_or_default(),
+            draw_rectangles: cfg.motion.draw_rectangles.unwrap_or_default(),
         }
     }
 
@@ -126,21 +136,18 @@ impl MotionDetector {
 
                 if area as i32 >= self.min_threshold_size {
                     // Motion detected:
-                    match imgproc::draw_contours(
-                        Arc::get_mut(&mut contour_frame).unwrap().img_mut(),
-                        &contours,
-                        -1,
-                        Scalar::new(0.0, 0.0, 255.0, 0.0),
-                        4,
-                        LINE_AA,
-                        &no_array().unwrap(),
-                        1,
-                        Point::new(0, 0),
-                    ) {
-                        Ok(_) => (),
-                        Err(e) => error!("Drawing contours failed: {}", e),
+                    if self.draw_contours {
+                        match Arc::get_mut(&mut contour_frame) {
+                            Some(f) => draw_contours(f, &contours),
+                            None => warn!("Unable to get contour_frame mutable ref"),
+                        }
                     }
-
+                    if self.draw_rectangles {
+                        match Arc::get_mut(&mut contour_frame) {
+                            Some(f) => draw_rectangles(f, &contours),
+                            None => warn!("Unable to get contour_frame mutable ref"),
+                        }
+                    }
                     // send first frame:
                     if !self.in_motion {
                         self.send_frame(VideoFrame {
@@ -153,6 +160,7 @@ impl MotionDetector {
                     self.in_motion = true;
                     self.in_motion_window = true;
                     self.last_motion_time = frame.time();
+
                     debug!("Motion detected at {:?}", self.last_motion_time);
 
                     break;
@@ -210,4 +218,47 @@ fn check_in_motion_window(current_time: DateTime<Utc>, last_motion_time: DateTim
     } else {
         true
     }
+}
+
+fn draw_contours(frame: &mut Frame, contours: &VectorOfMat) {
+    match imgproc::draw_contours(
+        frame.img_mut(),
+        contours,
+        -1,
+        Scalar::new(0.0, 0.0, 255.0, 0.0),
+        4,
+        LINE_AA,
+        &no_array().unwrap(),
+        1,
+        Point::new(0, 0),
+    ) {
+        Ok(_) => (),
+        Err(e) => error!("Drawing contours failed: {}", e),
+    }
+}
+
+fn draw_rectangles(frame: &mut Frame, contours: &VectorOfMat) {
+    trace!("draw_rectangles contours: {:?}", contours);
+
+    contours.iter().for_each(|ctr| {
+        let rect = match bounding_rect(&ctr) {
+            Ok(rect) => rect,
+            Err(e) => {
+                error!("Failed to get bounding rectangle: {}", e);
+                return;
+            }
+        };
+
+        match rectangle(
+            frame.img_mut(),
+            rect,
+            Scalar::new(0.0, 255.0, 0.0, 0.0),
+            4,
+            LINE_AA,
+            0,
+        ) {
+            Ok(_) => (),
+            Err(e) => error!("Failed to draw bounding rectangle: {}", e),
+        }
+    });
 }

@@ -114,7 +114,7 @@ pub fn init_encoder<'a>(
 ) -> Video {
     let config = config::load_config(None);
 
-    ffmpeg::util::log::set_level(config.log_level.ffmpeg());
+    ffmpeg::util::log::set_level(config.ffmpeg_level.ffmpeg());
     ffmpeg::init().unwrap();
 
     // let x264_opts = parse_opts("enable-debug=3".to_string());

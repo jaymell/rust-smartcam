@@ -3,14 +3,15 @@ mod file_source;
 mod frame;
 mod frame_reader;
 mod logger;
-mod motion_detector;
+mod motion_detection;
 mod upload;
 mod video;
 mod web;
 
-use self::motion_detector::MotionDetector;
+use self::motion_detection::MotionDetector;
 use crate::frame::Frame;
 pub(crate) use config::FileSourceType;
+use log::debug;
 use std::process;
 use std::sync::{mpsc::channel, Arc};
 use std::thread;
@@ -23,12 +24,9 @@ fn main() -> () {
     logger::init().unwrap();
 
     let config = config::load_config(None);
-    let display_enabled = match config.display.enabled {
-        Some(e) => e,
-        // default enabled if not specified:
-        None => true,
-    };
+    debug!("Config: {:?}", config);
 
+    let display_enabled = config.display.enabled.unwrap_or(true);
     let (mut threads, web_rx_vec) = launch(config.cameras.clone(), display_enabled);
 
     let (tx, rx) = channel();

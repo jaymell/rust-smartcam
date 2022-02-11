@@ -1,6 +1,6 @@
 use ffmpeg::util::log::level::Level as FfLevel;
 use ffmpeg_next as ffmpeg;
-use log::{debug, Level, LevelFilter};
+use log::{Level, LevelFilter};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::fs::File;
@@ -83,6 +83,7 @@ pub struct Config {
     pub display: DisplayConfig,
     pub storage: StorageConfig,
     pub log_level: LogLevel,
+    pub ffmpeg_level: LogLevel,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -102,6 +103,8 @@ pub struct CloudConfig {
 #[derive(Deserialize, Clone, Debug)]
 pub struct MotionConfig {
     pub min_threshold_size: i32,
+    pub draw_contours: Option<bool>,
+    pub draw_rectangles: Option<bool>,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -137,7 +140,6 @@ static GLOBAL_DATA: Lazy<Arc<Config>> = Lazy::new(|| {
         .unwrap_or_else(|err| panic!("Error while reading config: [{}]", err));
 
     let cfg = toml::from_str(&config_toml).unwrap();
-    debug!("Config: {:?}", cfg);
     Arc::new(cfg)
 });
 
