@@ -24,7 +24,7 @@ impl FrameReader for V4LFrameReader {
         senders: Vec<Sender<Arc<Frame>>>,
         web_tx: Option<AsyncSender<Arc<Frame>>>,
         source: Option<&str>,
-    ) -> Result<()> {
+    ) {
         if senders.len() == 0 {
             panic!("No frame recipients specified");
         }
@@ -90,6 +90,6 @@ impl FrameReader for V4LFrameReader {
             frame_count as f64 / start.elapsed().as_secs_f64()
         );
 
-        Ok(())
+        panic!("V4LFrameReader.read_frame exiting");
     }
 }

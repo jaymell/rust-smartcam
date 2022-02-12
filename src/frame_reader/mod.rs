@@ -16,7 +16,7 @@ pub trait FrameReader {
         senders: Vec<Sender<Arc<Frame>>>,
         web_tx: Option<AsyncSender<Arc<Frame>>>,
         source: Option<&str>,
-    ) -> Result<()>;
+    );
 }
 
 pub fn start_frame_reader(

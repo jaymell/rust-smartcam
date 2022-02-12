@@ -107,7 +107,7 @@ impl VideoFileWriter {
             let video_frame = receiver.recv().unwrap();
             let frame = video_frame.frame;
             let frame_duration = self.video_proc.process_frame(frame);
-            debug!("Frame duration: {:?}", frame_duration);
+            trace!("Frame duration: {:?}", frame_duration);
             self.write_packets_to_ctx();
             if video_frame.is_end {
                 debug!("Last frame receieved, sending EOF");

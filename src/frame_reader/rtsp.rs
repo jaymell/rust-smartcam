@@ -6,7 +6,7 @@ use ffmpeg::media::Type;
 use ffmpeg::software::scaling::{context::Context, flag::Flags};
 use ffmpeg::util::frame::video::Video;
 use ffmpeg_next::codec::packet::packet::Packet;
-use log::{debug, error, warn};
+use log::{debug, error, warn, trace};
 use opencv::core::Mat_AUTO_STEP;
 use opencv::core::CV_8UC3;
 use opencv::prelude::*;
@@ -35,6 +35,7 @@ struct DecoderThread {
 }
 
 impl DecoderThread {
+
     pub fn new(
         packet_rx: Receiver<Packet>,
         decoder: ffmpeg::decoder::Video,
@@ -72,23 +73,26 @@ impl DecoderThread {
             let packet = match self.packet_rx.recv() {
                 Ok(packet) => packet,
                 Err(error) => {
-                    error!("Failed to receieve packet: {:?}", error);
+                    error!("Failed to receive packet: {:?}", error);
                     continue;
                 }
             };
             match self.decoder.send_packet(&packet) {
                 Ok(_) => (),
                 Err(e) => {
-                    warn!("Error receiving packet: {} -- dropping", e);
+                    warn!("Error decoding packet: {} -- dropping", e);
                     continue;
                 }
             }
 
             self.receive_and_process_decoded_frames();
         }
+
+        panic!("Decoder thread exited");
     }
 
     fn receive_and_process_decoded_frames(&mut self) -> Result<()> {
+
         let mut decoded = Video::empty();
 
         while self.decoder.receive_frame(&mut decoded).is_ok() {
@@ -121,12 +125,14 @@ impl DecoderThread {
 }
 
 impl FrameReader for RTSPFrameReader {
+
     fn read_frames(
         &self,
         senders: Vec<Sender<Arc<Frame>>>,
         web_tx: Option<AsyncSender<Arc<Frame>>>,
         source: Option<&str>,
-    ) -> Result<()> {
+    ) {
+
         // AVFormatContext
         let mut ictx = input(&source.unwrap()).unwrap();
         // Stream (Context -> AVFormatContext)
@@ -146,18 +152,20 @@ impl FrameReader for RTSPFrameReader {
             dec.start();
         });
 
-        for (stream, packet) in ictx.packets() {
-            if stream.index() == video_stream_index {
-                if let Err(e) = packet_tx.send(packet) {
-                    error!("Packet send failed: {}", e);
-                    continue;
+        loop {
+            for (stream, packet) in ictx.packets() {
+                if stream.index() == video_stream_index {
+                    if let Err(e) = packet_tx.send(packet) {
+                        error!("Packet send failed: {}", e);
+                        continue;
+                    }
                 }
             }
+            warn!("Input packet iterator returned None -- restarting");
         }
 
-        decoder_thread.join().expect("Couldn't join decoder_thread");
+        panic!("RTSPFrameReader.read_frame exiting");
 
-        Ok(())
     }
 }
 
