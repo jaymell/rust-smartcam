@@ -108,7 +108,11 @@ function createVideoDiv(label, video) {
   source.type = "video/mp4";
 
   const div = document.createElement("div");
+  const desc = document.createElement("p");
+  const txt = document.createTextNode(video);
+  desc.appendChild(txt);
   div.appendChild(videoTag);
+  div.appendChild(desc);
   videoTag.appendChild(source);
   ctr.appendChild(div);
 }

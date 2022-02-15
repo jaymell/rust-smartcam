@@ -3003,6 +3003,7 @@ dependencies = [
  "strum",
  "strum_macros",
  "tokio",
+ "tokio-stream",
  "toml",
  "v4l",
  "webrtc",

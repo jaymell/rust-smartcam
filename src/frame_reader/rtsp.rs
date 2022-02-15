@@ -6,7 +6,7 @@ use ffmpeg::media::Type;
 use ffmpeg::software::scaling::{context::Context, flag::Flags};
 use ffmpeg::util::frame::video::Video;
 use ffmpeg_next::codec::packet::packet::Packet;
-use log::{debug, error, warn, trace};
+use log::{debug, error, trace, warn};
 use opencv::core::Mat_AUTO_STEP;
 use opencv::core::CV_8UC3;
 use opencv::prelude::*;
@@ -35,7 +35,6 @@ struct DecoderThread {
 }
 
 impl DecoderThread {
-
     pub fn new(
         packet_rx: Receiver<Packet>,
         decoder: ffmpeg::decoder::Video,
@@ -92,7 +91,6 @@ impl DecoderThread {
     }
 
     fn receive_and_process_decoded_frames(&mut self) -> Result<()> {
-
         let mut decoded = Video::empty();
 
         while self.decoder.receive_frame(&mut decoded).is_ok() {
@@ -125,14 +123,12 @@ impl DecoderThread {
 }
 
 impl FrameReader for RTSPFrameReader {
-
     fn read_frames(
         &self,
         senders: Vec<Sender<Arc<Frame>>>,
         web_tx: Option<AsyncSender<Arc<Frame>>>,
         source: Option<&str>,
     ) {
-
         // AVFormatContext
         let mut ictx = input(&source.unwrap()).unwrap();
         // Stream (Context -> AVFormatContext)
@@ -165,7 +161,6 @@ impl FrameReader for RTSPFrameReader {
         }
 
         panic!("RTSPFrameReader.read_frame exiting");
-
     }
 }
 

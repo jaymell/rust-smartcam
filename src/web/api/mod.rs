@@ -1,6 +1,6 @@
 use crate::config::Config;
-use crate::file_source;
 use crate::frame::{Frame, VideoFrame};
+use crate::repository::{VideoFile, VideoRepository};
 use crate::upload;
 use crate::video::{init_encoder, rtc_track::RTCTrack, VideoRTCStream};
 
@@ -22,7 +22,7 @@ use log::{debug, error, info, trace, warn};
 use opencv::core::prelude::MatTrait;
 use rocket::fs::{FileServer, NamedFile};
 use rocket::http::Status;
-use rocket::response::{content, status};
+use rocket::response::{content, status, stream::TextStream};
 use rocket::serde::json::Json;
 use rocket::State;
 use std::cell::{Cell, RefCell};
@@ -56,12 +56,16 @@ use webrtc::track::track_remote::TrackRemote;
 
 use webrtc::ice_transport::ice_candidate::RTCIceCandidate;
 
+use tokio_stream::StreamExt;
+
 #[get("/videos/<label>")]
-pub(crate) async fn get_videos(
+pub(crate) async fn get_videos_list(
     label: String,
-    fs: &State<Arc<dyn file_source::FileSource + Send + Sync>>,
-) -> Json<Vec<file_source::VideoFile>> {
-    Json(fs.list_files_by_label(&label).await.unwrap())
+    fs: &State<Arc<dyn VideoRepository + Send + Sync>>,
+) -> Json<Vec<VideoFile>> {
+    let s = fs.stream_files_by_label(label.clone()).await;
+    // .unwrap();
+    Json(s.collect().await)
 }
 
 #[get("/videos/<label>/<video>")]

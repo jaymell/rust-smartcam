@@ -11,6 +11,7 @@ futures = "0.3.17"
 libc     = "0.2"
 log = "0.4"
 tokio = { version = "1", features = ["full"] }
+tokio-stream = { version = "0.1.8", features = ["fs"] }
 gtk = "0.14.1"
 glib = "0.14.1"
 gdk-pixbuf = "0.14.0"

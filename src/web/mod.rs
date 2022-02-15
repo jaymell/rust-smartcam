@@ -1,6 +1,6 @@
 use crate::config;
-use crate::file_source;
 use crate::frame::{Frame, VideoFrame};
+use crate::repository;
 use crate::upload;
 use crate::video::{init_encoder, rtc_track::RTCTrack, VideoRTCStream};
 
@@ -34,13 +34,13 @@ pub async fn start(
             routes![
                 api::get_stream,
                 api::get_streams_list,
-                api::get_videos,
+                api::get_videos_list,
                 api::get_video_by_name,
             ],
         )
         .mount("/", FileServer::from("web"))
         .manage(streams)
-        .manage(file_source::load())
+        .manage(repository::load())
         .manage(config::load_config(None))
         .launch()
         .await;
