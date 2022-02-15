@@ -44,8 +44,8 @@ impl VideoRepository for LocalVideoRepository {
         Ok(v)
     }
 
-    async fn stream_files_by_label(&self, label: String) -> Pin<Arc<dyn Stream<Item = VideoFile>>> {
-        Arc::pin(
+    async fn stream_files_by_label(&self, label: String) -> Pin<Box<dyn Stream<Item = VideoFile> + Send>> {
+        Box::pin(
             ReadDirStream::new(fs::read_dir(&self.path).await.unwrap())
                 .filter(move |entry| match entry {
                     Ok(e) => e.file_name().to_string_lossy().contains(&label),
@@ -53,7 +53,7 @@ impl VideoRepository for LocalVideoRepository {
                 })
                 .map(|entry| VideoFile {
                     file_name: entry.unwrap().file_name().into_string().unwrap(),
-                }),
+                })
         )
         //     match fs::read_dir(&self.path).await {
         //         Ok(e) => Ok(Arc::pin(

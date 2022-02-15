@@ -9,9 +9,8 @@ use local::LocalVideoRepository;
 use once_cell::sync::Lazy;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-
 use std::pin::Pin;
+use std::sync::Arc;
 use tokio_stream::wrappers::ReadDirStream;
 use tokio_stream::StreamExt;
 
@@ -35,7 +34,7 @@ pub struct VideoFile {
 #[async_trait]
 pub trait VideoRepository {
     async fn list_files_by_label(&self, label: &str) -> Result<Vec<VideoFile>>;
-    async fn stream_files_by_label(&self, label: String) -> Pin<Arc<dyn Stream<Item = VideoFile>>>;
+    async fn stream_files_by_label(&self, label: String) -> Pin<Box<dyn Stream<Item = VideoFile> + Send>>;
     // async fn list_files_by_label_since_time(&self, label: &str, since_time: &str) -> Vec<VideoFile>;
     // async fn list_files_by_label_before_time(&self, label: &str, before_time: &str) -> Vec<VideoFile>;
     // async fn list_files_by_label_between_times(

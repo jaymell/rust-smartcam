@@ -57,15 +57,19 @@ use webrtc::track::track_remote::TrackRemote;
 use webrtc::ice_transport::ice_candidate::RTCIceCandidate;
 
 use tokio_stream::StreamExt;
+use futures::stream::Stream;
+
+use std::pin::Pin;
 
 #[get("/videos/<label>")]
 pub(crate) async fn get_videos_list(
     label: String,
     fs: &State<Arc<dyn VideoRepository + Send + Sync>>,
-) -> Json<Vec<VideoFile>> {
-    let s = fs.stream_files_by_label(label.clone()).await;
-    // .unwrap();
-    Json(s.collect().await)
+// ) -> Json<Vec<VideoFile>> {
+) -> Option<String> {
+    let s: Vec<VideoFile> = fs.stream_files_by_label(label.clone()).await
+        .collect().await;
+    None
 }
 
 #[get("/videos/<label>/<video>")]
