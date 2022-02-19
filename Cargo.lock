@@ -1095,6 +1095,7 @@ dependencies = [
 [[package]]
 name = "ffmpeg-next"
 version = "4.4.0"
+source = "git+https://github.com/jaymell/rust-ffmpeg?branch=update-bindgen#12fce7befc9b0ccf12b574c0d056a0983bee6655"
 dependencies = [
  "bitflags",
  "ffmpeg-sys-next",
@@ -1104,6 +1105,7 @@ dependencies = [
 [[package]]
 name = "ffmpeg-sys-next"
 version = "4.4.0"
+source = "git+https://github.com/jaymell/rust-ffmpeg-sys?branch=update-bindgen#2a138e0d9465d0bde8f7e11e40477f2a969664c2"
 dependencies = [
  "bindgen 0.55.1",
  "cc",
@@ -3777,7 +3779,9 @@ dependencies = [
 
 [[package]]
 name = "v4l"
-version = "0.12.2"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f6eca58bca86b4b353b55e18828694f91e83dd7e9c4d7f127515e4687d5a8e9"
 dependencies = [
  "bitflags",
  "libc",
@@ -3787,6 +3791,8 @@ dependencies = [
 [[package]]
 name = "v4l2-sys-mit"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e0c932c06df4af1dfb229f604214f2a87993784596ff33ffdadcba1b5519254e"
 dependencies = [
  "bindgen 0.56.0",
 ]

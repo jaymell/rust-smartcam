@@ -25,11 +25,11 @@ aws-types = { git = "https://github.com/awslabs/aws-sdk-rust", tag = "v0.0.17-al
 aws-config = { git = "https://github.com/awslabs/aws-sdk-rust", tag = "v0.0.17-alpha", package = "aws-config" }
 aws-sdk-s3 = { git = "https://github.com/awslabs/aws-sdk-rust", tag = "v0.0.17-alpha", package = "aws-sdk-s3" }
 opencv = { version = "0.53", features=["clang-runtime"] }
-ffmpeg-next = { path = "../rust-ffmpeg" }
-ffmpeg-sys-next = { path = "../rust-ffmpeg-sys" }
+ffmpeg-next = { git = "https://github.com/jaymell/rust-ffmpeg", branch = "update-bindgen" }
+ffmpeg-sys-next = { git = "https://github.com/jaymell/rust-ffmpeg-sys", branch = "update-bindgen" }
 #ffmpeg-next = "4.4.0"
 #ffmpeg-sys-next = "4.4.0"
-v4l = { path = "../libv4l-rs" }
+v4l = "0.12.1"
 strum = "0.21"
 strum_macros = "0.21"
 
