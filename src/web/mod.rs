@@ -1,26 +1,12 @@
-use crate::config;
-use crate::frame::{Frame, VideoFrame};
-use crate::repository;
-use crate::upload;
-use crate::video::{init_encoder, rtc_track::RTCTrack, VideoRTCStream};
-
 mod api;
-
-use futures::join;
-use log::{debug, error, info, trace, warn};
+use crate::config;
+use crate::frame::Frame;
+use crate::repository;
+use crate::video::{rtc_track::RTCTrack, VideoRTCStream};
 use rocket::fs::FileServer;
-use rocket::response::{content, status};
-use rocket::serde::json::Json;
-use rocket::State;
-use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
-use std::ffi::CString;
-use std::path::Path;
-use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{mpsc, Arc};
-use std::thread;
-use std::{fs, mem, ptr};
-use tokio::sync::mpsc::{channel as async_channel, Receiver as AsyncReceiver};
+use std::sync::Arc;
+use tokio::sync::mpsc::Receiver as AsyncReceiver;
 use tokio::task::JoinHandle;
 
 pub async fn start(
@@ -43,7 +29,8 @@ pub async fn start(
         .manage(repository::load())
         .manage(config::load_config(None))
         .launch()
-        .await;
+        .await
+        .expect("Failed to start Rocket");
     // for t in threads {
     //     t.await;
     // }

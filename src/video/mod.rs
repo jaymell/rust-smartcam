@@ -5,44 +5,22 @@ mod video_proc;
 
 use crate::config;
 use crate::config::CameraConfig;
-use crate::frame::{Frame, VideoFrame};
+use crate::frame::VideoFrame;
 use crate::upload;
-use crate::FileSourceType;
-use bytes::Bytes;
 use chrono;
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Utc};
 use ffmpeg::{
     codec, codec::encoder::video::Video, format, format::context::output::Output,
-    format::stream::StreamMut, format::Pixel, frame, util::log::level::Level,
-    util::rational::Rational, Dictionary, Packet,
+    util::rational::Rational, Dictionary,
 };
 use ffmpeg_next as ffmpeg;
-use ffmpeg_sys_next as ffs;
-use ffs::{
-    av_frame_alloc, av_frame_get_buffer, av_guess_format, avformat_alloc_context, avpicture_fill,
-    AVPicture, AVPixelFormat,
-};
-use libc::c_int;
-use log::{debug, error, info, trace, warn};
-use opencv::core::prelude::MatTrait;
+use log::{debug, error, info, warn};
 use rtc_track::RTCTrack;
-use std::cell::RefCell;
-use std::error::Error;
-use std::ffi::CString;
 use std::fs;
-use std::mem;
-use std::path::{Path, PathBuf};
-use std::ptr;
-use std::sync::atomic::AtomicU32;
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::Sender;
 use std::sync::{mpsc, Arc};
 use std::thread;
 use tokio::runtime::Runtime;
-use tokio::sync::mpsc::{channel as async_channel, Receiver as AsyncReceiver};
-use tokio::sync::Mutex;
-use webrtc::api::media_engine::MIME_TYPE_H264;
-use webrtc::media::Sample;
-use webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecCapability;
 
 pub(crate) use file_writer::VideoFileWriter;
 pub(crate) use rtc_stream::VideoRTCStream;

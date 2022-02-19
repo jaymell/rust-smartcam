@@ -1,28 +1,22 @@
 extern crate ffmpeg_next as ffmpeg;
 use super::FrameReader;
+use crate::frame::{Colorspace, Frame};
 use anyhow::Result;
 use ffmpeg::format::{input, Pixel};
 use ffmpeg::media::Type;
 use ffmpeg::software::scaling::{context::Context, flag::Flags};
 use ffmpeg::util::frame::video::Video;
 use ffmpeg_next::codec::packet::packet::Packet;
-use log::{debug, error, trace, warn};
+use log::{debug, error, warn};
 use opencv::core::Mat_AUTO_STEP;
 use opencv::core::CV_8UC3;
 use opencv::prelude::*;
-use std::error::Error;
-use std::sync::{mpsc::channel, mpsc::Receiver, mpsc::Sender, Arc};
-use std::time::SystemTime;
-use tokio::sync::mpsc::Sender as AsyncSender;
-
-use crate::frame::{Colorspace, Frame};
-
-use opencv::core::Vector;
-use opencv::imgcodecs::imwrite;
 use std::fs::File;
 use std::io::prelude::*;
+use std::sync::{mpsc::channel, mpsc::Receiver, mpsc::Sender, Arc};
 use std::thread;
-use std::thread::JoinHandle;
+use std::time::SystemTime;
+use tokio::sync::mpsc::Sender as AsyncSender;
 
 pub struct RTSPFrameReader {}
 
@@ -83,11 +77,10 @@ impl DecoderThread {
                     continue;
                 }
             }
-
-            self.receive_and_process_decoded_frames();
+            if let Err(e) = self.receive_and_process_decoded_frames() {
+                warn!("receive_and_process_decoded_frames failed: {}", e);
+            }
         }
-
-        panic!("Decoder thread exited");
     }
 
     fn receive_and_process_decoded_frames(&mut self) -> Result<()> {
@@ -159,8 +152,6 @@ impl FrameReader for RTSPFrameReader {
             }
             warn!("Input packet iterator returned None -- restarting");
         }
-
-        panic!("RTSPFrameReader.read_frame exiting");
     }
 }
 

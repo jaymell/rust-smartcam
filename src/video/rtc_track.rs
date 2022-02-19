@@ -1,4 +1,3 @@
-use log::info;
 use std::any::Any;
 use std::sync::{Arc, Mutex};
 use webrtc::error::Result;

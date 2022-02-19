@@ -2,14 +2,14 @@ use super::{VideoFile, VideoRepository};
 use crate::config;
 use anyhow::Result;
 use async_trait::async_trait;
-use chrono::DateTime;
+
 use futures::stream::Stream;
-use serde::Serialize;
+
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
-use std::sync::Arc;
+
 use tokio::fs;
-use tokio::fs::ReadDir;
+
 use tokio_stream::wrappers::ReadDirStream;
 use tokio_stream::StreamExt;
 
@@ -44,7 +44,10 @@ impl VideoRepository for LocalVideoRepository {
         Ok(v)
     }
 
-    async fn stream_files_by_label(&self, label: String) -> Pin<Box<dyn Stream<Item = VideoFile> + Send>> {
+    async fn stream_files_by_label(
+        &self,
+        label: String,
+    ) -> Pin<Box<dyn Stream<Item = VideoFile> + Send>> {
         Box::pin(
             ReadDirStream::new(fs::read_dir(&self.path).await.unwrap())
                 .filter(move |entry| match entry {
@@ -53,7 +56,7 @@ impl VideoRepository for LocalVideoRepository {
                 })
                 .map(|entry| VideoFile {
                     file_name: entry.unwrap().file_name().into_string().unwrap(),
-                })
+                }),
         )
         //     match fs::read_dir(&self.path).await {
         //         Ok(e) => Ok(Arc::pin(

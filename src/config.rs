@@ -6,7 +6,6 @@ use serde::Deserialize;
 use std::fs::File;
 use std::io::Read;
 use std::sync::Arc;
-use toml::Value;
 
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "lowercase")]

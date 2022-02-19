@@ -1,18 +1,15 @@
 mod local;
 
-use crate::config;
 use anyhow::Result;
 use async_trait::async_trait;
-use chrono::DateTime;
+
 use futures::stream::Stream;
 use local::LocalVideoRepository;
 use once_cell::sync::Lazy;
 use serde::Serialize;
-use std::path::{Path, PathBuf};
+
 use std::pin::Pin;
 use std::sync::Arc;
-use tokio_stream::wrappers::ReadDirStream;
-use tokio_stream::StreamExt;
 
 static GLOBAL_DATA: Lazy<Arc<dyn VideoRepository + Send + Sync>> =
     Lazy::new(|| Arc::new(LocalVideoRepository::new()));
@@ -26,6 +23,7 @@ pub struct VideoFile {
     // timestamp: DateTime<Utc>,
     // label: String,
     // link: String,
+    // type: VideoFileType
     pub file_name: String,
     // length?
     // resolution?
@@ -34,7 +32,10 @@ pub struct VideoFile {
 #[async_trait]
 pub trait VideoRepository {
     async fn list_files_by_label(&self, label: &str) -> Result<Vec<VideoFile>>;
-    async fn stream_files_by_label(&self, label: String) -> Pin<Box<dyn Stream<Item = VideoFile> + Send>>;
+    async fn stream_files_by_label(
+        &self,
+        label: String,
+    ) -> Pin<Box<dyn Stream<Item = VideoFile> + Send>>;
     // async fn list_files_by_label_since_time(&self, label: &str, since_time: &str) -> Vec<VideoFile>;
     // async fn list_files_by_label_before_time(&self, label: &str, before_time: &str) -> Vec<VideoFile>;
     // async fn list_files_by_label_between_times(

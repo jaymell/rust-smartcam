@@ -1,18 +1,17 @@
 use super::FrameReader;
-use anyhow::Result;
+
 use log::{debug, info, trace};
 use opencv::core::Mat_AUTO_STEP;
 use opencv::core::CV_8UC3;
 use opencv::prelude::*;
-use std::error::Error;
+
 use std::sync::{mpsc::Sender, Arc};
 use std::time::Instant;
 use std::time::SystemTime;
 use tokio::sync::mpsc::Sender as AsyncSender;
 use v4l::buffer::Type;
 use v4l::io::traits::CaptureStream;
-use v4l::prelude::*;
-use v4l::video::Capture;
+use v4l::{prelude::*, video::Capture};
 
 use crate::frame::{Colorspace, Frame};
 
@@ -83,13 +82,5 @@ impl FrameReader for V4LFrameReader {
                 s.blocking_send(Arc::clone(&a)).unwrap();
             }
         }
-
-        frame_count += 1;
-        trace!(
-            "FPS: {}",
-            frame_count as f64 / start.elapsed().as_secs_f64()
-        );
-
-        panic!("V4LFrameReader.read_frame exiting");
     }
 }
