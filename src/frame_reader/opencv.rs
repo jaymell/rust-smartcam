@@ -36,6 +36,4 @@ pub fn start(sender: Sender<Frame>) -> Result<()> {
             frame_count as f64 / start.elapsed().as_secs_f64()
         );
     }
-
-    Ok(())
 }

@@ -6,7 +6,7 @@ use opencv::{
     core::Point,
     core::Scalar,
     core::BORDER_CONSTANT,
-    highgui, imgproc,
+    imgproc,
     imgproc::{bounding_rect, rectangle, CHAIN_APPROX_SIMPLE, LINE_AA, RETR_TREE, THRESH_BINARY},
     prelude::*,
     types::VectorOfMat,
@@ -184,7 +184,6 @@ impl MotionDetector {
                         is_end: false,
                     });
                 }
-                frame_sent = true;
             }
 
             previous = frame;

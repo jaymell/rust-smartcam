@@ -1,7 +1,7 @@
 use crate::config;
 use crate::config::Config;
 use chrono::{DateTime, Utc};
-use log::{Level, LevelFilter, Metadata, Record, SetLoggerError};
+use log::{Metadata, Record, SetLoggerError};
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 use std::time::SystemTime;

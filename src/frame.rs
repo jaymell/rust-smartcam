@@ -3,7 +3,6 @@ use opencv::{
     core::Size_, core::BORDER_DEFAULT, imgproc::cvt_color, imgproc::gaussian_blur,
     imgproc::COLOR_BGR2GRAY, prelude::*, Result,
 };
-use std::error::Error;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -160,10 +159,7 @@ impl Frame {
         self.width
     }
 
-    pub fn colorspace(&self) -> Colorspace {
-        self.colorspace
-    }
-
+    /*
     pub fn buf(&self) -> Result<Vec<u8>, Box<dyn Error>> {
         unsafe {
             /* I have no idea why this doesn't display properly:
@@ -183,6 +179,7 @@ impl Frame {
             Ok(sl)
         }
     }
+    */
 
     pub fn blur(&self) -> Result<Frame> {
         let mut blurred = Mat::default();

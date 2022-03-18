@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::Read;
 use std::sync::Arc;
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum FileSourceType {
     Local,
@@ -144,17 +144,4 @@ static GLOBAL_DATA: Lazy<Arc<Config>> = Lazy::new(|| {
 
 pub fn load_config(_path: Option<String>) -> Arc<Config> {
     Arc::clone(&GLOBAL_DATA)
-}
-
-#[cfg(test)]
-mod tests {
-
-    use super::FileSourceType;
-    use std::str::FromStr;
-
-    #[test]
-    fn should_parse_lowercase_fileSourceType() {
-        let variant = FileSourceType::from_str("local").unwrap();
-        assert_eq!(FileSourceType::Local, variant);
-    }
 }

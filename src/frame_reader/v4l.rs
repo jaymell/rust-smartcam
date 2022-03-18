@@ -1,12 +1,9 @@
 use super::FrameReader;
-use anyhow::Result;
-use log::{debug, info, trace};
+use log::{debug, info};
 use opencv::core::Mat_AUTO_STEP;
 use opencv::core::CV_8UC3;
 use opencv::prelude::*;
-use std::error::Error;
 use std::sync::{mpsc::Sender, Arc};
-use std::time::Instant;
 use std::time::SystemTime;
 use tokio::sync::mpsc::Sender as AsyncSender;
 use v4l::buffer::Type;
@@ -47,8 +44,6 @@ impl FrameReader for V4LFrameReader {
         debug!("height: {}", format.height);
         let mut stream =
             MmapStream::with_buffers(&mut dev, Type::VideoCapture, buffer_count).unwrap();
-        let mut frame_count = 0;
-        let start = Instant::now();
 
         loop {
             let (buf, _meta) = stream.next().unwrap();
@@ -83,13 +78,5 @@ impl FrameReader for V4LFrameReader {
                 s.blocking_send(Arc::clone(&a)).unwrap();
             }
         }
-
-        frame_count += 1;
-        trace!(
-            "FPS: {}",
-            frame_count as f64 / start.elapsed().as_secs_f64()
-        );
-
-        panic!("V4LFrameReader.read_frame exiting");
     }
 }

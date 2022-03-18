@@ -78,7 +78,7 @@ fn launch(
 
             let cam = Arc::clone(&camera);
             let frame_reader_thread = thread::spawn(move || -> () {
-                frame_reader::start_frame_reader(cam, tx_vec, web_tx);
+                frame_reader::start_frame_reader(cam, tx_vec, web_tx).unwrap();
             });
 
             let cam = Arc::clone(&camera);

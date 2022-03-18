@@ -16,12 +16,7 @@ use tokio::sync::mpsc::Sender as AsyncSender;
 
 use crate::frame::{Colorspace, Frame};
 
-use opencv::core::Vector;
-use opencv::imgcodecs::imwrite;
-use std::fs::File;
-use std::io::prelude::*;
 use std::thread;
-use std::thread::JoinHandle;
 
 pub struct RTSPFrameReader {}
 
@@ -83,7 +78,7 @@ impl DecoderThread {
                 }
             }
 
-            self.receive_and_process_decoded_frames();
+            self.receive_and_process_decoded_frames().unwrap();
         }
     }
 
@@ -131,7 +126,7 @@ impl FrameReader for RTSPFrameReader {
         // Stream (Context -> AVFormatContext)
         let input = ictx.streams().best(Type::Video).unwrap();
         let video_stream_index = input.index();
-        let mut ff_decoder = input
+        let ff_decoder = input
             // AVCodecContext
             .codec()
             // Docoder(AVCodecContext)
@@ -159,9 +154,11 @@ impl FrameReader for RTSPFrameReader {
     }
 }
 
+/*
 fn save_file(frame: &Video, index: usize) -> std::result::Result<(), std::io::Error> {
     let mut file = File::create(format!("frame{}.ppm", index))?;
     file.write_all(format!("P6\n{} {}\n255\n", frame.width(), frame.height()).as_bytes())?;
     file.write_all(frame.data(0))?;
     Ok(())
 }
+*/

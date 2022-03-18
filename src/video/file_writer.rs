@@ -14,11 +14,10 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Receiver;
 pub struct VideoFileWriter {
-    start_time: DateTime<Utc>,
     video_proc: VideoProc,
     path: PathBuf,
     fps: i32,
-    temp_path: &'static str,
+    _temp_path: &'static str,
 }
 
 impl VideoFileWriter {
@@ -46,21 +45,16 @@ impl VideoFileWriter {
         octx.write_header().unwrap();
 
         Self {
-            start_time: start_time,
             video_proc: VideoProc::new(fps, octx, encoder),
             path: p,
-            temp_path: temp_path,
             fps,
+            _temp_path: temp_path,
         }
     }
 
     fn close_file(&mut self) {
         self.video_proc.encoder.send_eof().unwrap();
         self.video_proc.octx_mut().write_trailer().unwrap();
-    }
-
-    fn temp_path(&self) -> &str {
-        &self.temp_path
     }
 
     pub fn receive_file(

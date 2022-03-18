@@ -16,7 +16,7 @@ pub async fn start(
     receivers: Vec<AsyncReceiver<Arc<Frame>>>,
     cameras: Vec<config::CameraConfig>,
 ) -> () {
-    let (streams, threads) = start_async(receivers, cameras).await;
+    let (streams, _threads) = start_async(receivers, cameras).await;
     if let Err(e) = rocket::build()
         .mount(
             "/api",
