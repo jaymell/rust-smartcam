@@ -6,7 +6,6 @@ use serde::Deserialize;
 use std::fs::File;
 use std::io::Read;
 use std::sync::Arc;
-use toml::Value;
 
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
@@ -143,7 +142,7 @@ static GLOBAL_DATA: Lazy<Arc<Config>> = Lazy::new(|| {
     Arc::new(cfg)
 });
 
-pub fn load_config(path: Option<String>) -> Arc<Config> {
+pub fn load_config(_path: Option<String>) -> Arc<Config> {
     Arc::clone(&GLOBAL_DATA)
 }
 

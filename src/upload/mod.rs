@@ -29,7 +29,7 @@ pub async fn upload_file(path: &str) -> Result<(), Box<dyn Error>> {
     let bucket = &app_config.cloud.bucket;
     let client = Client::new(&aws_config_builder.build());
 
-    let content_length = fs::metadata(p).unwrap().len();
+    let _content_length = fs::metadata(p).unwrap().len();
     let body = ByteStream::from_path(Path::new(p)).await.unwrap();
     let key = p.file_name().unwrap();
 

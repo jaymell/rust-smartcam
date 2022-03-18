@@ -1,26 +1,15 @@
 use crate::config;
 use crate::file_source;
-use crate::frame::{Frame, VideoFrame};
-use crate::upload;
-use crate::video::{init_encoder, rtc_track::RTCTrack, VideoRTCStream};
+use crate::frame::Frame;
+use crate::video::{rtc_track::RTCTrack, VideoRTCStream};
 
 mod api;
 
-use futures::join;
-use log::{debug, error, info, trace, warn};
+use log::error;
 use rocket::fs::FileServer;
-use rocket::response::{content, status};
-use rocket::serde::json::Json;
-use rocket::State;
-use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
-use std::ffi::CString;
-use std::path::Path;
-use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{mpsc, Arc};
-use std::thread;
-use std::{fs, mem, ptr};
-use tokio::sync::mpsc::{channel as async_channel, Receiver as AsyncReceiver};
+use std::sync::Arc;
+use tokio::sync::mpsc::Receiver as AsyncReceiver;
 use tokio::task::JoinHandle;
 
 pub async fn start(
@@ -28,7 +17,7 @@ pub async fn start(
     cameras: Vec<config::CameraConfig>,
 ) -> () {
     let (streams, threads) = start_async(receivers, cameras).await;
-    rocket::build()
+    if let Err(e) = rocket::build()
         .mount(
             "/api",
             routes![
@@ -43,10 +32,10 @@ pub async fn start(
         .manage(file_source::load())
         .manage(config::load_config(None))
         .launch()
-        .await;
-    // for t in threads {
-    //     t.await;
-    // }
+        .await
+    {
+        error!("Failed to launch rocket: {}", e);
+    }
 }
 
 async fn start_async(
@@ -64,7 +53,7 @@ async fn start_async(
 
                 let thread = tokio::spawn(async move {
                     let f = rx.recv().await.unwrap();
-                    stream.start(f.width(), f.height(), None, rx).await;
+                    stream.start(f.width(), f.height(), rx).await;
                 });
 
                 (label, track, thread)

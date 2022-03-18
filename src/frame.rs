@@ -1,15 +1,9 @@
 use chrono::{DateTime, Utc};
-use log::debug;
-use opencv::core::Vec3b;
 use opencv::{
     core::Size_, core::BORDER_DEFAULT, imgproc::cvt_color, imgproc::gaussian_blur,
     imgproc::COLOR_BGR2GRAY, prelude::*, Result,
 };
-use std::convert::TryInto;
 use std::error::Error;
-use std::fmt;
-use std::iter::Flatten;
-use std::ops::Drop;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -51,7 +45,7 @@ impl Colorspace {
             Self::YUYV => match target {
                 Colorspace::YUYV => buf,
                 Colorspace::BGR => {
-                    debug!("buf len is {}", buf.len());
+                    trace!("buf len is {}", buf.len());
                     yuyv_to_bgr(&buf)
                 }
                 Colorspace::RGB => panic!("{} to {} conversion not supported", self, target),

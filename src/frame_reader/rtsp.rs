@@ -6,11 +6,10 @@ use ffmpeg::media::Type;
 use ffmpeg::software::scaling::{context::Context, flag::Flags};
 use ffmpeg::util::frame::video::Video;
 use ffmpeg_next::codec::packet::packet::Packet;
-use log::{debug, error, warn, trace};
+use log::{debug, error, warn};
 use opencv::core::Mat_AUTO_STEP;
 use opencv::core::CV_8UC3;
 use opencv::prelude::*;
-use std::error::Error;
 use std::sync::{mpsc::channel, mpsc::Receiver, mpsc::Sender, Arc};
 use std::time::SystemTime;
 use tokio::sync::mpsc::Sender as AsyncSender;
@@ -35,14 +34,13 @@ struct DecoderThread {
 }
 
 impl DecoderThread {
-
     pub fn new(
         packet_rx: Receiver<Packet>,
         decoder: ffmpeg::decoder::Video,
         senders: Vec<Sender<Arc<Frame>>>,
         web_tx: Option<AsyncSender<Arc<Frame>>>,
     ) -> Self {
-        let mut scaler = Context::get(
+        let scaler = Context::get(
             decoder.format(),
             decoder.width(),
             decoder.height(),
@@ -87,12 +85,9 @@ impl DecoderThread {
 
             self.receive_and_process_decoded_frames();
         }
-
-        panic!("Decoder thread exited");
     }
 
     fn receive_and_process_decoded_frames(&mut self) -> Result<()> {
-
         let mut decoded = Video::empty();
 
         while self.decoder.receive_frame(&mut decoded).is_ok() {
@@ -125,14 +120,12 @@ impl DecoderThread {
 }
 
 impl FrameReader for RTSPFrameReader {
-
     fn read_frames(
         &self,
         senders: Vec<Sender<Arc<Frame>>>,
         web_tx: Option<AsyncSender<Arc<Frame>>>,
         source: Option<&str>,
     ) {
-
         // AVFormatContext
         let mut ictx = input(&source.unwrap()).unwrap();
         // Stream (Context -> AVFormatContext)
@@ -147,7 +140,7 @@ impl FrameReader for RTSPFrameReader {
             .unwrap();
 
         let (packet_tx, packet_rx) = channel();
-        let decoder_thread = thread::spawn(move || -> () {
+        let _decoder_thread = thread::spawn(move || -> () {
             let mut dec = DecoderThread::new(packet_rx, ff_decoder, senders, web_tx);
             dec.start();
         });
@@ -163,9 +156,6 @@ impl FrameReader for RTSPFrameReader {
             }
             warn!("Input packet iterator returned None -- restarting");
         }
-
-        panic!("RTSPFrameReader.read_frame exiting");
-
     }
 }
 
