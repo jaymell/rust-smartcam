@@ -13,6 +13,7 @@ use log::{debug, trace};
 use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Receiver;
+
 pub struct VideoFileWriter {
     video_proc: VideoProc,
     path: PathBuf,
@@ -62,11 +63,11 @@ impl VideoFileWriter {
         receiver: Receiver<VideoFrame>,
     ) -> Result<String, Box<dyn Error>> {
         loop {
-            let video_frame = receiver.recv().unwrap();
+            let video_frame = receiver.recv()?;
             let frame = video_frame.frame;
             let frame_duration = self.video_proc.process_frame(frame);
             trace!("Frame duration: {:?}", frame_duration);
-            self.write_packets_to_ctx();
+            self.write_packets_to_ctx()?;
             if video_frame.is_end {
                 debug!("Last frame receieved, sending EOF");
                 self.close_file();
@@ -77,7 +78,7 @@ impl VideoFileWriter {
         Ok(self.path.to_str().unwrap().to_string())
     }
 
-    fn write_packets_to_ctx(&mut self) {
+    fn write_packets_to_ctx(&mut self) -> Result<(), Box<dyn Error>> {
         let ost_index = 0;
         let mut encoded = Packet::empty();
         let source_tb = Rational::new(1, self.fps);
@@ -92,9 +93,9 @@ impl VideoFileWriter {
             encoded.set_stream(ost_index);
             encoded.rescale_ts(source_tb, stream_tb);
             encoded
-                .write_interleaved(&mut self.video_proc.octx_mut())
-                .unwrap();
+                .write_interleaved(&mut self.video_proc.octx_mut())?;
         }
         trace!("Finished writing packets...");
+        Ok(())
     }
 }

@@ -7,6 +7,8 @@ use crate::config;
 use crate::config::CameraConfig;
 use crate::frame::VideoFrame;
 use crate::upload;
+use crate::db;
+
 use chrono;
 use chrono::{DateTime, Utc};
 use ffmpeg::{
@@ -21,6 +23,9 @@ use std::sync::mpsc::Sender;
 use std::sync::{mpsc, Arc};
 use std::thread;
 use tokio::runtime::Runtime;
+use sea_orm::Database;
+use sea_orm::{entity::prelude::*, ActiveValue::Set, QueryOrder};
+use std::time::SystemTime;
 
 pub(crate) use file_writer::VideoFileWriter;
 pub(crate) use rtc_stream::VideoRTCStream;
@@ -32,34 +37,67 @@ pub fn start_video_writer(
     width: u32,
     height: u32,
 ) -> Sender<VideoFrame> {
+
     let (video_tx, video_rx) = mpsc::channel::<VideoFrame>();
 
     let label = camera.label.clone();
+    
     thread::spawn(move || -> () {
         let app_config = config::load_config(None);
         let mut video_frame_proc = VideoFileWriter::new(label, start_time, width, height);
-        match video_frame_proc.receive_file(video_rx) {
-            Ok(p) => {
-                if let Some(b) = app_config.cloud.enabled {
-                    if b {
-                        handle_upload(p)
-                    } else {
-                        info!("Upload disabled -- video retained at {}", &p);
-                    }
-                }
-            }
-            Err(e) => error!("Video writing failed: {}", e),
+        // receive file
+        // upload file if upload enabled
+        // write to db
+        let video_file = video_frame_proc.receive_file(video_rx);
+        if let Err(e) = video_file {
+            error!("Video writing failed: {}", e);
+            return;
         }
+        let video_file_path = video_file.unwrap();
+        if let Some(b) = app_config.cloud.enabled {
+            if b {
+                handle_upload(&video_file_path);
+            } else {
+                info!("Upload disabled -- video retained at {}", &video_file_path);
+            }
+        }
+        Runtime::new().unwrap().block_on(async {
+            let my_db = Database::connect("postgresql://postgres:password@localhost:5432/smartcam")
+            .await
+            .unwrap();
+
+
+            let st = db::storage_type::Entity::find_by_name("local")
+                .one(&my_db)
+                .await
+                .unwrap()
+                .unwrap();
+
+            let vf = db::video_file::ActiveModel {
+                path: Set(video_file_path.to_owned()),
+                name: Set("test_file".to_owned()),
+                label: Set("test_label".to_owned()),
+                ts: Set(start_time.into()),
+                created: Set(SystemTime::now().into()),
+                modified: Set(SystemTime::now().into()),
+                storage_type_id: Set(st.id),
+                ..Default::default()
+            };
+
+            vf.insert(&my_db).await;
+        });
+
     });
 
     video_tx
 }
 
-fn handle_upload(path: String) -> () {
+fn handle_upload(path: &str) -> anyhow::Result<()> {
     match Runtime::new().unwrap().block_on(upload::upload_file(&path)) {
         Ok(_) => {
             debug!("Deleting file {}", &path);
             fs::remove_file(path).unwrap();
+            Ok(())
         }
         Err(e) => {
             error!("File upload failed: {}", e);
@@ -67,6 +105,7 @@ fn handle_upload(path: String) -> () {
                 "Skipping deletion due to upload failure; video retained at {}",
                 &path
             );
+            Err(anyhow::anyhow!("File upload failed: {}", e))
         }
     }
 }

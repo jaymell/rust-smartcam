@@ -7,6 +7,7 @@ mod motion_detection;
 mod upload;
 mod video;
 mod web;
+mod db;
 
 use self::motion_detection::MotionDetector;
 use crate::frame::Frame;
